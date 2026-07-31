@@ -14,9 +14,9 @@ import entity.Room;
  * @author User
  */
 public class BookingControl {
-    private QueueInterface<Booking> waitingQueue;
-    private QueueInterface<Room> availableRooms;
-    private QueueInterface<Booking> confirmedBookings;
+    private final QueueInterface<Booking> waitingQueue;
+    private final QueueInterface<Room> availableRooms;
+    private final QueueInterface<Booking> confirmedBookings;
     
     private int guestCounter = 101;
     private int bookingCounter = 1001;
@@ -201,7 +201,7 @@ public class BookingControl {
             int inDay = Integer.parseInt(b.getCheckInDate().substring(8));
             int outDay = Integer.parseInt(b.getCheckOutDate().substring(8));
             return Math.max(1, outDay - inDay);
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
             return 1;
         }
     }
