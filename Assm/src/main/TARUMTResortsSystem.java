@@ -1,6 +1,7 @@
 package main;
 
 import boundary.WalkInRegistrationUI;
+import control.FrontDeskControl;
 // Import teammate UI classes when ready:
 // import boundary.FrontDeskUI;
 // import boundary.HousekeepingUI;
@@ -19,6 +20,7 @@ public class TARUMTResortsSystem {
 
     // Module UI instances
     private final WalkInRegistrationUI walkInUI;
+    private final FrontDeskControl frontDeskControl;
     // private final FrontDeskUI frontDeskUI;
     // private final HousekeepingUI housekeepingUI;
     // private final LoyaltyRewardsUI loyaltyUI;
@@ -28,6 +30,7 @@ public class TARUMTResortsSystem {
 
         // Initialize Module UI instances
         this.walkInUI = new WalkInRegistrationUI();
+        this.frontDeskControl = new FrontDeskControl();
         // this.frontDeskUI = new FrontDeskUI();
         // this.housekeepingUI = new HousekeepingUI();
         // this.loyaltyUI = new LoyaltyRewardsUI();
@@ -61,11 +64,7 @@ public class TARUMTResortsSystem {
                     walkInUI.displayMenu();
 
                 case 2 -> {
-                    // Teammate 2: Front Desk Service
-                    System.out.println("\n  [ NOTICE ] Opening Front Desk Service Module...");
-                    System.out.println("  (Module pending integration by Teammate 2)");
-                    // frontDeskUI.displayMenu();
-                    pressEnterToContinue();
+                    frontDeskControl.runFrontDeskService(); 
                 }
 
                 case 3 -> {
