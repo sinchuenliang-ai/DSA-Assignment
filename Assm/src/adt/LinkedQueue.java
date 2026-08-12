@@ -77,10 +77,6 @@ public class LinkedQueue<T> implements QueueInterface<T> {
         private T data;
         private Node next;
 
-        private Node(T data) {
-            this(data, null);
-        }
-
         private Node(T data, Node next) {
             this.data = data;
             this.next = next;
