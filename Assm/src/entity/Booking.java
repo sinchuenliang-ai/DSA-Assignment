@@ -15,6 +15,7 @@ public class Booking {
     private String checkOutDate;
     private int numberOfGuests;
     private String bookingStatus;
+    private String requestedRoomType;
     private Guest guest;
     private Room room;
 
@@ -25,6 +26,7 @@ public class Booking {
         this.checkOutDate = checkOutDate;
         this.numberOfGuests = numberOfGuests;
         this.bookingStatus = bookingStatus;
+        this.requestedRoomType = "Standard Single";
         this.guest = guest;
         this.room = room;
     }
@@ -75,6 +77,14 @@ public class Booking {
 
     public void setBookingStatus(String bookingStatus) {
         this.bookingStatus = bookingStatus;
+    }
+    
+    public String getRequestedRoomType() {
+        return requestedRoomType;
+    }
+
+    public void setRequestedRoomType(String requestedRoomType) {
+        this.requestedRoomType = requestedRoomType;
     }
 
     public Guest getGuest() {
