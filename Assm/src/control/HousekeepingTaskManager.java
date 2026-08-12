@@ -36,8 +36,11 @@ public class HousekeepingTaskManager {
         if (taskStack.isEmpty()) {
             return null;
         }
+        
+        HousekeepingTask task = taskStack.pop();
+        task.setStatus("Completed");
 
-        return taskStack.pop();
+        return task;
     }
 
 
