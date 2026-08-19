@@ -1,12 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package entity;
 
 /**
- *
- * @author User
+ * Entity class representing a Booking in the resort system.
  */
 public class Booking {
     private String bookingID;
@@ -19,18 +14,33 @@ public class Booking {
     private Guest guest;
     private Room room;
 
-    public Booking(String bookingID, String bookingDate, String checkInDate, String checkOutDate, int numberOfGuests, String bookingStatus, Guest guest, Room room) {
+    // Default No-Arg Constructor
+    public Booking() {
+    }
+
+    // Constructor without requestedRoomType (defaults to "Standard Single")
+    public Booking(String bookingID, String bookingDate, String checkInDate, 
+                   String checkOutDate, int numberOfGuests, String bookingStatus, 
+                   Guest guest, Room room) {
+        this(bookingID, bookingDate, checkInDate, checkOutDate, numberOfGuests, bookingStatus, "Standard Single", guest, room);
+    }
+
+    // Overloaded Constructor accepting requestedRoomType directly
+    public Booking(String bookingID, String bookingDate, String checkInDate, 
+                   String checkOutDate, int numberOfGuests, String bookingStatus, 
+                   String requestedRoomType, Guest guest, Room room) {
         this.bookingID = bookingID;
         this.bookingDate = bookingDate;
         this.checkInDate = checkInDate;
         this.checkOutDate = checkOutDate;
         this.numberOfGuests = numberOfGuests;
         this.bookingStatus = bookingStatus;
-        this.requestedRoomType = "Standard Single";
+        this.requestedRoomType = requestedRoomType;
         this.guest = guest;
         this.room = room;
     }
 
+    // Getters and Setters
     public String getBookingID() {
         return bookingID;
     }
@@ -78,7 +88,7 @@ public class Booking {
     public void setBookingStatus(String bookingStatus) {
         this.bookingStatus = bookingStatus;
     }
-    
+
     public String getRequestedRoomType() {
         return requestedRoomType;
     }
