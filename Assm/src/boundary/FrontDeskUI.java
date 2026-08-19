@@ -33,16 +33,16 @@ public class FrontDeskUI {
         return choice;
       }
 
-  // =========================================================================
+// =========================================================================
   // ROOM AVAILABILITY DISPLAY
   // =========================================================================
 
   public void displayRoomAvailabilityTable(String tableOutput) {
-    System.out.println("\n===============================================================================");
-    System.out.println("                           ROOM AVAILABILITY STATUS                            ");
-    System.out.println("===============================================================================");
+    System.out.println("\n==========================================================================================================");
+    System.out.println("                                      ROOM AVAILABILITY STATUS                                            ");
+    System.out.println("==========================================================================================================");
     System.out.print(tableOutput);
-    System.out.println("===============================================================================");
+    System.out.println("==========================================================================================================");
     System.out.println("Press Enter to return to the Main Menu...");
     scanner.nextLine();
   }
@@ -66,7 +66,7 @@ public class FrontDeskUI {
     return choice;
   }
   
-  // =========================================================================
+// =========================================================================
   // UPDATE SUB-MENU
   // =========================================================================
 
@@ -78,13 +78,12 @@ public class FrontDeskUI {
     System.out.println("2. Update Room Category");
     System.out.println("3. Update Room Number");
     System.out.println("4. Update Stay Duration");
-    System.out.println("5. Update Total Bill");
-    System.out.println("6. Update Status");
+    System.out.println("5. Update Status");
     System.out.println("0. Done Updating");
     System.out.println("-----------------------------------------");
     System.out.print("Enter choice: ");
     int choice = scanner.nextInt();
-    scanner.nextLine(); // Consume newline
+    scanner.nextLine(); 
     System.out.println();
     return choice;
   }
@@ -203,3 +202,4 @@ public class FrontDeskUI {
     scanner.nextLine();
     return days;
   }
+}
