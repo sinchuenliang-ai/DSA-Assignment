@@ -1,8 +1,8 @@
 package boundary;
 
-import control.HousekeepingTaskManager;
-import Entities.HousekeepingTask;
-import Entities.Staff;
+import control.HouseKeepingControl;
+import entities.HousekeepingTask;
+import entities.Staff;
 
 import java.util.Scanner;
 
@@ -10,8 +10,8 @@ public class HouseKeepingUI {
 
     public static void main(String[] args) {
 
-        HousekeepingTaskManager manager =
-                new HousekeepingTaskManager();
+        HouseKeepingControl manager =
+                new HouseKeepingControl();
 
         Scanner scanner = new Scanner(System.in);
 
