@@ -6,7 +6,6 @@ import entity.Reservation;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Random;
 import utility.MessageUI;
 
 /**
@@ -16,7 +15,6 @@ public class FrontDeskControl {
 
   private TreeInterface<Reservation> reservationTree = new BinarySearchTreeADT<>();
   private FrontDeskUI frontDeskUI = new FrontDeskUI();
-  private Random random = new Random();
 
   // Expanded master list of all physical rooms in the hotel
   private final String[] HOTEL_ROOMS = {
@@ -25,20 +23,27 @@ public class FrontDeskControl {
       "S-201", "S-202", "S-203", "S-204", "S-205",                            // Suite
       "P-501", "P-502"                                                        // Presidential
   };
+  
+  private double getRoomRate(String category) {
+    return switch (category.toLowerCase()) {
+      case "standard" -> 120.00;
+      case "deluxe" -> 150.00;
+      case "suite" -> 500.00;
+      case "presidential" -> 1200.00;
+      default -> 100.00;
+    };
+  }
 
   public FrontDeskControl() {
     seedInitialData();
   }
 
   private void seedInitialData() {
-    // Existing data
     reservationTree.add(new Reservation("10008801", "Tan Ah Kow", "Deluxe", "D-101", 3, 450.00, "Checked-In"));
     reservationTree.add(new Reservation("10008805", "Siti Nurhaliza", "Suite", "S-202", 5, 2500.00, "Reserved"));
     reservationTree.add(new Reservation("10008802", "Alex Muthu", "Standard", "A-005", 1, 120.00, "Checked-Out"));
     reservationTree.add(new Reservation("10008809", "John Doe", "Presidential", "P-501", 7, 8400.00, "Checked-In"));
     reservationTree.add(new Reservation("10008804", "Alice Smith", "Suite", "S-201", 2, 1100.00, "Checked-In"));
-    
-    // Additional dummy data indicating different statuses
     reservationTree.add(new Reservation("10008810", "Michael Chen", "Standard", "A-002", 2, 240.00, "Checked-In"));
     reservationTree.add(new Reservation("10008811", "Sarah Lim", "Standard", "A-003", 4, 480.00, "Reserved"));
     reservationTree.add(new Reservation("10008812", "David Wong", "Deluxe", "D-105", 0, 0.00, "Maintenance")); 
@@ -46,24 +51,23 @@ public class FrontDeskControl {
     reservationTree.add(new Reservation("10008814", "Ahmad Ali", "Deluxe", "D-103", 2, 300.00, "Checked-In"));
   }
 
-    public String generate8DigitConfirmationNumber() {
-        long maxId = 10008800; // Base starting number
-        Iterator<Reservation> it = reservationTree.getInorderIterator();
+  public String generate8DigitConfirmationNumber() {
+    long maxId = 10008800; // Base starting number
+    Iterator<Reservation> it = reservationTree.getInorderIterator();
 
-        // Find the highest existing confirmation number
-        while (it.hasNext()) {
-          try {
-            long currentId = Long.parseLong(it.next().getConfirmationNumber());
-            if (currentId > maxId) {
-              maxId = currentId;
-            }
-          } catch (NumberFormatException e) {
-            // Ignore any manually entered IDs that aren't strict numbers
-          }
+    // Find the highest existing confirmation number
+    while (it.hasNext()) {
+      try {
+        long currentId = Long.parseLong(it.next().getConfirmationNumber());
+        if (currentId > maxId) {
+          maxId = currentId;
         }
-        // Return the next sequence number
-        return String.valueOf(maxId + 1);
+      } catch (NumberFormatException e) {
+        // Ignore non-numeric confirmation numbers
       }
+    }
+    return String.valueOf(maxId + 1);
+  }
 
   public Reservation registerGuestAndAssignConfirmation(String guestName, String roomCategory, String roomNumber, int stayDays, double totalBill, String status) {
     String confirmationNumber = generate8DigitConfirmationNumber();
@@ -98,7 +102,6 @@ public class FrontDeskControl {
     } while (choice != 0);
   }
 
-  // New Method: Delete Guest
   public void deleteReservation() {
     String confirmNo = frontDeskUI.inputConfirmationNumber();
     Reservation target = new Reservation(confirmNo);
@@ -111,9 +114,7 @@ public class FrontDeskControl {
     }
   }
 
-  // New Method: Assign Sequential Walk-In
   public void assignWalkInConfirmation() {
-    // This utilizes the sequential generator we created earlier
     String newConfirmNo = generate8DigitConfirmationNumber(); 
     System.out.println("\n-----------------------------------------");
     System.out.println("Assigned Next Walk-In Confirmation #: " + newConfirmNo);
@@ -125,36 +126,42 @@ public class FrontDeskControl {
   // ROOM AVAILABILITY
   // =========================================================================
 
-  public void viewRoomAvailability() {
+public void viewRoomAvailability() {
     Map<String, String> roomStatusMap = new HashMap<>();
     Map<String, String> roomGuestMap = new HashMap<>();
 
-    // Iterate through the BST to find active reservations and unready rooms
     Iterator<Reservation> it = reservationTree.getInorderIterator();
     while (it.hasNext()) {
       Reservation r = it.next();
       String roomNo = r.getRoomNumber();
       String status = r.getStatus();
       
-      // If the room is assigned and not checked-out, track its current status
       if (roomNo != null && !roomNo.trim().isEmpty() && !roomNo.equalsIgnoreCase("Pending") && !status.equalsIgnoreCase("Checked-Out")) {
         roomStatusMap.put(roomNo.toUpperCase(), status);
         roomGuestMap.put(roomNo.toUpperCase(), r.getGuestName());
       }
     }
 
-    // Build the table layout
     StringBuilder table = new StringBuilder();
-    table.append(String.format("| %-10s | %-15s | %-25s | %-20s |\n", "Room No.", "Category", "Guest Name", "Current Status"));
-    table.append("|------------|-----------------|---------------------------|----------------------|\n");
+
+    // Table Header Border
+    table.append("+------------+-----------------+------------------+---------------------------+----------------------+\n");
+    table.append(String.format("| %-10s | %-15s | %-16s | %-25s | %-20s |\n", 
+        "Room No.", "Category", "Rate / Night ($)", "Guest Name", "Current Status"));
+    table.append("+------------+-----------------+------------------+---------------------------+----------------------+\n");
 
     for (String room : HOTEL_ROOMS) {
       String category = getRoomCategoryPrefix(room);
+      double rate = getRoomRate(category);
       String status = roomStatusMap.getOrDefault(room.toUpperCase(), "Ready / Available");
       String guest = roomGuestMap.getOrDefault(room.toUpperCase(), "-");
 
-      table.append(String.format("| %-10s | %-15s | %-25s | %-20s |\n", room, category, guest, status));
+      table.append(String.format("| %-10s | %-15s | $%-15.2f | %-25s | %-20s |\n", 
+          room, category, rate, guest, status));
     }
+    
+    // Table Footer Border
+    table.append("+------------+-----------------+------------------+---------------------------+----------------------+\n");
 
     frontDeskUI.displayRoomAvailabilityTable(table.toString());
   }
@@ -217,6 +224,24 @@ public class FrontDeskControl {
   // REGISTER / UPDATE
   // =========================================================================
 
+  private double calculateTotalBill(String roomCategory, int days) {
+    double dailyRate = 0.0;
+    
+    switch (roomCategory.toLowerCase()) {
+      case "standard" -> dailyRate = 120.00;
+      case "deluxe" -> dailyRate = 150.00;
+      case "suite" -> dailyRate = 500.00;
+      case "presidential" -> dailyRate = 1200.00;
+      default -> System.out.println("  [!] Unknown room category. Using base rate of $100.00");
+    }
+    
+    if (dailyRate == 0.0 && !roomCategory.isEmpty()) {
+       dailyRate = 100.00;
+    }
+    
+    return dailyRate * days;
+  }
+
   public void addNewReservation() {
     String confirmNo = generate8DigitConfirmationNumber();
     System.out.println("-----------------------------------------");
@@ -227,14 +252,16 @@ public class FrontDeskControl {
     String category = frontDeskUI.inputRoomCategory();
     String room = frontDeskUI.inputRoomNumber();
     int days = frontDeskUI.inputStayDuration();
-    double bill = frontDeskUI.inputTotalBill();
+    
+    double calculatedBill = calculateTotalBill(category, days);
+    System.out.printf("Calculated Total Bill: $%.2f\n", calculatedBill);
 
-    Reservation newReservation = new Reservation(confirmNo, name, category, room, days, bill, "Checked-In");
+    Reservation newReservation = new Reservation(confirmNo, name, category, room, days, calculatedBill, "Checked-In");
     reservationTree.add(newReservation);
     MessageUI.displayAddedMessage();
   }
 
-public void updateReservationStatus() {
+  public void updateReservationStatus() {
     String confirmNo = frontDeskUI.inputConfirmationNumber();
     Reservation res = reservationTree.search(new Reservation(confirmNo));
     
@@ -245,10 +272,7 @@ public void updateReservationStatus() {
 
     int choice;
     do {
-      // Show current details so the user knows what they are updating
       frontDeskUI.printReservationDetails(res);
-      
-      // Get what the user wants to update
       choice = frontDeskUI.getUpdateMenuChoice();
       
       switch (choice) {
@@ -256,18 +280,21 @@ public void updateReservationStatus() {
           res.setGuestName(frontDeskUI.inputGuestName());
           break;
         case 2:
-          res.setRoomCategory(frontDeskUI.inputRoomCategory());
+          String newCategory = frontDeskUI.inputRoomCategory();
+          res.setRoomCategory(newCategory);
+          res.setTotalBillAmount(calculateTotalBill(newCategory, res.getStayDurationDays()));
+          System.out.println("Room category updated. New bill auto-calculated.");
           break;
         case 3:
           res.setRoomNumber(frontDeskUI.inputRoomNumber());
           break;
         case 4:
-          res.setStayDurationDays(frontDeskUI.inputStayDuration());
+          int newDays = frontDeskUI.inputStayDuration();
+          res.setStayDurationDays(newDays);
+          res.setTotalBillAmount(calculateTotalBill(res.getRoomCategory(), newDays));
+          System.out.println("Stay duration updated. New bill auto-calculated.");
           break;
         case 5:
-          res.setTotalBillAmount(frontDeskUI.inputTotalBill());
-          break;
-        case 6:
           res.setStatus(frontDeskUI.inputStatus());
           break;
         case 0:
