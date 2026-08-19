@@ -115,5 +115,40 @@ public class BinarySearchTreeADT<T extends Comparable<T>> implements TreeInterfa
       }
       return (T) elements[currentIndex++];
     }
+    
+  }
+  
+  @Override
+  public boolean remove(T entry) {
+    int initialSize = size;
+    root = removeRecursive(root, entry);
+    return size < initialSize;
+  }
+
+  private Node removeRecursive(Node current, T entry) {
+    if (current == null) {
+      return null;
+    }
+    int comp = entry.compareTo(current.data);
+    if (comp < 0) {
+      current.left = removeRecursive(current.left, entry);
+    } else if (comp > 0) {
+      current.right = removeRecursive(current.right, entry);
+    } else {
+      // Node to delete found
+      size--;
+      if (current.left == null) return current.right;
+      if (current.right == null) return current.left;
+      
+      // Node with two children: Get inorder successor
+      current.data = findSmallestValue(current.right);
+      current.right = removeRecursive(current.right, current.data);
+      size++; // Adjust size because recursive call decremented it
+    }
+    return current;
+  }
+
+  private T findSmallestValue(Node root) {
+    return root.left == null ? root.data : findSmallestValue(root.left);
   }
 }
