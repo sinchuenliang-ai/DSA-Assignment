@@ -18,4 +18,6 @@ public interface TreeInterface<T extends Comparable<T>> {
   public int getSize();
 
   public Iterator<T> getInorderIterator();
+
+  public boolean remove(T entry);
 }
