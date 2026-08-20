@@ -18,4 +18,4 @@ S-203|S-203|Executive Suite|Available|500.00
 S-204|S-204|Executive Suite|Available|500.00
 S-205|S-205|Executive Suite|Available|500.00
 P-501|P-501|Presidential Suite|Occupied|1200.00
-P-502|P-502|Presidential Suite|Available|1200.00
+P-502|P-502|Presidential Suite|Occupied|1200.00

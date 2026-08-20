@@ -77,18 +77,20 @@ public class WalkInRegistrationUI {
         int guestCount = readIntInput("Number of Guests (1-10)   : ", 1, 10);
 
         System.out.println("\nSelect Preferred Room Type:");
-        System.out.println("  [1] Standard Single");
-        System.out.println("  [2] Standard Double");
-        System.out.println("  [3] Deluxe Suite");
-        System.out.println("  [4] Executive Suite");
-        int typeChoice = readIntInput("Choice (1-4): ", 1, 4);
+        System.out.println("  [1] Standard Single      ($120.00 / night)");
+        System.out.println("  [2] Standard Double      ($150.00 / night)");
+        System.out.println("  [3] Deluxe Suite         ($250.00 / night)");
+        System.out.println("  [4] Executive Suite      ($500.00 / night)");
+        System.out.println("  [5] Presidential Suite   ($1200.00 / night)");
+        int typeChoice = readIntInput("Choice (1-5): ", 1, 5);
 
-        String roomTypePreference = "Standard Single";
-        switch (typeChoice) {
-            case 2 -> roomTypePreference = "Standard Double";
-            case 3 -> roomTypePreference = "Deluxe Suite";
-            case 4 -> roomTypePreference = "Executive Suite";
-        }
+        String roomTypePreference = switch (typeChoice) {
+            case 2 -> "Standard Double";
+            case 3 -> "Deluxe Suite";
+            case 4 -> "Executive Suite";
+            case 5 -> "Presidential Suite";
+            default -> "Standard Single";
+        };
 
         Booking newBooking = bookingControl.registerWalkInGuest(
                 name, gender, phone, email, icPassport, 
@@ -106,73 +108,78 @@ public class WalkInRegistrationUI {
     }
 
     private void handleAssignRoom() {
-    printHeader("2. ASSIGN ROOM TO NEXT GUEST");
+        printHeader("2. ASSIGN ROOM TO NEXT GUEST");
 
-    if (bookingControl.getWaitingCount() == 0) {
-        System.out.println("  [ NOTICE ] All waiting queues are currently empty.");
-        return;
+        if (bookingControl.getWaitingCount() == 0) {
+            System.out.println("  [ NOTICE ] All waiting queues are currently empty.");
+            return;
+        }
+
+        int singleAvail = bookingControl.getAvailableRoomCountByType("Standard Single");
+        int singleWait  = bookingControl.getWaitingCountByType("Standard Single");
+
+        int doubleAvail = bookingControl.getAvailableRoomCountByType("Standard Double");
+        int doubleWait  = bookingControl.getWaitingCountByType("Standard Double");
+
+        int deluxeAvail = bookingControl.getAvailableRoomCountByType("Deluxe Suite");
+        int deluxeWait  = bookingControl.getWaitingCountByType("Deluxe Suite");
+
+        int execAvail   = bookingControl.getAvailableRoomCountByType("Executive Suite");
+        int execWait    = bookingControl.getWaitingCountByType("Executive Suite");
+
+        int presAvail   = bookingControl.getAvailableRoomCountByType("Presidential Suite");
+        int presWait    = bookingControl.getWaitingCountByType("Presidential Suite");
+
+        System.out.println("  Select Room Type Queue to Process:");
+        System.out.println("  -----------------------------------------------------------------------------");
+        System.out.printf("  %-8s %-22s | %-16s | %-14s\n", "Option", "Room Type", "Available Rooms", "Waiting Guests");
+        System.out.println("  -----------------------------------------------------------------------------");
+        System.out.printf("  [1]      %-22s | %-16d | %-14d\n", "Standard Single", singleAvail, singleWait);
+        System.out.printf("  [2]      %-22s | %-16d | %-14d\n", "Standard Double", doubleAvail, doubleWait);
+        System.out.printf("  [3]      %-22s | %-16d | %-14d\n", "Deluxe Suite",    deluxeAvail, deluxeWait);
+        System.out.printf("  [4]      %-22s | %-16d | %-14d\n", "Executive Suite",   execAvail,   execWait);
+        System.out.printf("  [5]      %-22s | %-16d | %-14d\n", "Presidential Suite", presAvail,  presWait);
+        System.out.printf("  [0]      %-22s | %-16s | %-14s\n", "Cancel / Return",   "-",         "-");
+        System.out.println("  -----------------------------------------------------------------------------");
+
+        int typeChoice = readIntInput("Choice (0-5): ", 0, 5);
+
+        if (typeChoice == 0) {
+            System.out.println("\n  [ System ] Room assignment operation cancelled.");
+            return;
+        }
+
+        String selectedType = switch (typeChoice) {
+            case 2 -> "Standard Double";
+            case 3 -> "Deluxe Suite";
+            case 4 -> "Executive Suite";
+            case 5 -> "Presidential Suite";
+            default -> "Standard Single";
+        };
+
+        if (bookingControl.getWaitingCountByType(selectedType) == 0) {
+            System.out.println("\n  [ NOTICE ] No guests are currently waiting in the " + selectedType + " queue.");
+            return;
+        }
+
+        if (bookingControl.getAvailableRoomCountByType(selectedType) == 0) {
+            System.out.println("\n  [ WARNING ] No " + selectedType + " rooms are available to assign right now.");
+            return;
+        }
+
+        Booking assigned = bookingControl.assignRoomByRoomType(selectedType);
+
+        if (assigned != null) {
+            System.out.println("\n  [ SUCCESS ] Room Assigned Successfully!");
+            System.out.println("   Booking ID    : " + assigned.getBookingID());
+            System.out.println("   Guest Name    : " + assigned.getGuest().getGuestName());
+            System.out.println("   Room Assigned : " + assigned.getRoom().getRoomNumber() 
+                               + " (" + assigned.getRoom().getRoomType() + ")");
+            System.out.println("   * Status      : Transferred to Front Desk for Confirmation Number Assignment.");
+        } else {
+            System.out.println("\n  [ ERROR ] Room assignment failed.");
+        }
     }
-
-    int singleAvail = bookingControl.getAvailableRoomCountByType("Standard Single");
-    int singleWait  = bookingControl.getWaitingCountByType("Standard Single");
-
-    int doubleAvail = bookingControl.getAvailableRoomCountByType("Standard Double");
-    int doubleWait  = bookingControl.getWaitingCountByType("Standard Double");
-
-    int deluxeAvail = bookingControl.getAvailableRoomCountByType("Deluxe Suite");
-    int deluxeWait  = bookingControl.getWaitingCountByType("Deluxe Suite");
-
-    int execAvail   = bookingControl.getAvailableRoomCountByType("Executive Suite");
-    int execWait    = bookingControl.getWaitingCountByType("Executive Suite");
-
-    System.out.println("  Select Room Type Queue to Process:");
-    System.out.println("  -----------------------------------------------------------------------");
-    System.out.printf("  %-8s %-20s | %-16s | %-14s\n", "Option", "Room Type", "Available Rooms", "Waiting Guests");
-    System.out.println("  -----------------------------------------------------------------------");
-    System.out.printf("  [1]      %-20s | %-16d | %-14d\n", "Standard Single", singleAvail, singleWait);
-    System.out.printf("  [2]      %-20s | %-16d | %-14d\n", "Standard Double", doubleAvail, doubleWait);
-    System.out.printf("  [3]      %-20s | %-16d | %-14d\n", "Deluxe Suite",    deluxeAvail, deluxeWait);
-    System.out.printf("  [4]      %-20s | %-16d | %-14d\n", "Executive Suite",   execAvail,   execWait);
-    System.out.printf("  [0]      %-20s | %-16s | %-14s\n", "Cancel / Return",   "-",         "-");
-    System.out.println("  -----------------------------------------------------------------------");
-
-    int typeChoice = readIntInput("Choice (0-4): ", 0, 4);
-
-    // Exit assignment screen if user selects 0
-    if (typeChoice == 0) {
-        System.out.println("\n  [ System ] Room assignment operation cancelled.");
-        return;
-    }
-
-    String selectedType = "Standard Single";
-    switch (typeChoice) {
-        case 2 -> selectedType = "Standard Double";
-        case 3 -> selectedType = "Deluxe Suite";
-        case 4 -> selectedType = "Executive Suite";
-    }
-
-    if (bookingControl.getWaitingCountByType(selectedType) == 0) {
-        System.out.println("\n  [ NOTICE ] No guests are currently waiting in the " + selectedType + " queue.");
-        return;
-    }
-
-    if (bookingControl.getAvailableRoomCountByType(selectedType) == 0) {
-        System.out.println("\n  [ WARNING ] No " + selectedType + " rooms are available to assign right now.");
-        return;
-    }
-
-    Booking assigned = bookingControl.assignRoomByRoomType(selectedType);
-
-    if (assigned != null) {
-        System.out.println("\n  [ SUCCESS ] Room Assigned Successfully!");
-        System.out.println("   Booking ID    : " + assigned.getBookingID());
-        System.out.println("   Guest Name    : " + assigned.getGuest().getGuestName());
-        System.out.println("   Room Assigned : " + assigned.getRoom().getRoomNumber() 
-                           + " (" + assigned.getRoom().getRoomType() + ")");
-    } else {
-        System.out.println("\n  [ ERROR ] Room assignment failed.");
-    }
-}
 
     private void handleCancelBooking() {
         printHeader("3. CANCEL WAITING BOOKING");
@@ -201,8 +208,8 @@ public class WalkInRegistrationUI {
         }
         System.out.println("-----------------------------------------------------------------------------------------------------");
 
-        String bookingID = "";
-        Booking targetBooking = null;
+        String bookingID;
+        Booking targetBooking;
 
         while (true) {
             bookingID = readNonEmptyString("\nEnter Booking ID to Cancel (or enter [0] to return): ");
@@ -300,14 +307,16 @@ public class WalkInRegistrationUI {
         printHeader("5. REAL-TIME SYSTEM STATUS");
 
         System.out.println("   [ WAITING QUEUES BY ROOM TYPE ]");
-        System.out.printf("   - Standard Single : %d guest(s)\n", bookingControl.getWaitingCountByType("Standard Single"));
-        System.out.printf("   - Standard Double : %d guest(s)\n", bookingControl.getWaitingCountByType("Standard Double"));
-        System.out.printf("   - Deluxe Suite    : %d guest(s)\n", bookingControl.getWaitingCountByType("Deluxe Suite"));
-        System.out.printf("   - Executive Suite : %d guest(s)\n", bookingControl.getWaitingCountByType("Executive Suite"));
+        System.out.printf("   - Standard Single    : %d guest(s)\n", bookingControl.getWaitingCountByType("Standard Single"));
+        System.out.printf("   - Standard Double    : %d guest(s)\n", bookingControl.getWaitingCountByType("Standard Double"));
+        System.out.printf("   - Deluxe Suite       : %d guest(s)\n", bookingControl.getWaitingCountByType("Deluxe Suite"));
+        System.out.printf("   - Executive Suite    : %d guest(s)\n", bookingControl.getWaitingCountByType("Executive Suite"));
+        System.out.printf("   - Presidential Suite : %d guest(s)\n", bookingControl.getWaitingCountByType("Presidential Suite"));
         System.out.println("   -------------------------------------");
-        System.out.println("   Total Waiting Guests    : " + bookingControl.getWaitingCount());
-        System.out.println("   Total Available Rooms   : " + bookingControl.getAvailableRoomsCount());
-        System.out.println("   Confirmed Check-Ins     : " + bookingControl.getConfirmedCount());
+        System.out.println("   Total Waiting Guests        : " + bookingControl.getWaitingCount());
+        System.out.println("   Pending Front Desk Conf.    : " + bookingControl.getPendingConfirmationsCount());
+        System.out.println("   Total Available Rooms       : " + bookingControl.getAvailableRoomsCount());
+        System.out.println("   Confirmed Bookings          : " + bookingControl.getConfirmedCount());
     }
 
     private int readIntInput(String prompt, int min, int max) {

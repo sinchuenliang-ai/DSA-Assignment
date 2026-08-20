@@ -6,9 +6,11 @@ import entity.Booking;
 import entity.Guest;
 import entity.Room;
 import java.time.LocalDate;
+import utility.FileHandler;
 
 /**
- * Controller class managing separate Queue ADTs per Room Type for Walk-In Bookings & Room Assignments.
+ * Controller class managing separate Queue ADTs per Room Type for Walk-In Bookings & Room Assignments,
+ * and linking seamlessly with Front Desk Service.
  */
 public class BookingControl {
 
@@ -16,68 +18,95 @@ public class BookingControl {
     private final QueueInterface<Booking> doubleQueue;
     private final QueueInterface<Booking> deluxeQueue;
     private final QueueInterface<Booking> executiveQueue;
+    private final QueueInterface<Booking> presidentialQueue;
 
-    private final QueueInterface<Room> availableRooms;
+    private final QueueInterface<Booking> pendingWalkInConfirmations;
     private final QueueInterface<Booking> confirmedBookings;
+    private final QueueInterface<Room> availableRooms;
+
+    private FrontDeskControl frontDeskControl;
+    private HouseKeepingControl houseKeepingControl;
 
     private int guestCounter = 101;
     private int bookingCounter = 1001;
 
     public BookingControl() {
+        this(null, null);
+    }
+
+    public BookingControl(FrontDeskControl frontDeskControl) {
+        this(frontDeskControl, null);
+    }
+
+    public BookingControl(FrontDeskControl frontDeskControl, HouseKeepingControl houseKeepingControl) {
         this.singleQueue = new LinkedQueue<>();
         this.doubleQueue = new LinkedQueue<>();
         this.deluxeQueue = new LinkedQueue<>();
         this.executiveQueue = new LinkedQueue<>();
+        this.presidentialQueue = new LinkedQueue<>();
 
-        this.availableRooms = new LinkedQueue<>();
+        this.pendingWalkInConfirmations = new LinkedQueue<>();
         this.confirmedBookings = new LinkedQueue<>();
+        this.availableRooms = new LinkedQueue<>();
 
-        initializeRooms();
-        initializeMockData();
+        FileHandler.loadRooms(availableRooms);
+        FileHandler.loadBookings(singleQueue, doubleQueue, deluxeQueue, executiveQueue, presidentialQueue, pendingWalkInConfirmations, confirmedBookings);
+        recalculateCounters();
+
+        if (frontDeskControl != null) {
+            setFrontDeskControl(frontDeskControl);
+        }
+        if (houseKeepingControl != null) {
+            setHouseKeepingControl(houseKeepingControl);
+        }
     }
 
-    private void initializeRooms() {
-        // Standard Single Rooms (Quantity: 3)
-        availableRooms.enqueue(new Room("R101", "101", "Standard Single", "Available"));
-        availableRooms.enqueue(new Room("R102", "102", "Standard Single", "Available"));
-        availableRooms.enqueue(new Room("R103", "103", "Standard Single", "Available"));
-
-        // Standard Double Rooms (Quantity: 3)
-        availableRooms.enqueue(new Room("R104", "104", "Standard Double", "Available"));
-        availableRooms.enqueue(new Room("R105", "105", "Standard Double", "Available"));
-        availableRooms.enqueue(new Room("R106", "106", "Standard Double", "Available"));
-
-        // Deluxe Suites (Quantity: 2)
-        availableRooms.enqueue(new Room("R201", "201", "Deluxe Suite", "Available"));
-        availableRooms.enqueue(new Room("R202", "202", "Deluxe Suite", "Available"));
-
-        // Executive Suites (Quantity: 2)
-        availableRooms.enqueue(new Room("R301", "301", "Executive Suite", "Available"));
-        availableRooms.enqueue(new Room("R302", "302", "Executive Suite", "Available"));
+    public void setFrontDeskControl(FrontDeskControl frontDeskControl) {
+        this.frontDeskControl = frontDeskControl;
+        if (frontDeskControl != null && frontDeskControl.getBookingControl() != this) {
+            frontDeskControl.setBookingControl(this);
+        }
     }
 
-    private void initializeMockData() {
-        Guest g1 = new Guest("G101", "Alice Tan", "Female", "012-3456789", "alice@gmail.com", "IC950101");
-        Guest g2 = new Guest("G102", "Bob Lee", "Male", "013-9876543", "bob@gmail.com", "IC880202");
-        Guest g3 = new Guest("G103", "Charlie Wong", "Male", "014-1122334", "charlie@gmail.com", "IC990303");
+    public FrontDeskControl getFrontDeskControl() {
+        return frontDeskControl;
+    }
 
-        String today = LocalDate.now().toString();
+    public void setHouseKeepingControl(HouseKeepingControl houseKeepingControl) {
+        this.houseKeepingControl = houseKeepingControl;
+        if (houseKeepingControl != null && houseKeepingControl.getBookingControl() != this) {
+            houseKeepingControl.setBookingControl(this);
+        }
+    }
 
-        Booking b1 = new Booking("B1001", today, today, LocalDate.now().plusDays(4).toString(), 2, "Waiting", g1, null);
-        b1.setRequestedRoomType("Standard Single");
+    public HouseKeepingControl getHouseKeepingControl() {
+        return houseKeepingControl;
+    }
 
-        Booking b2 = new Booking("B1002", today, LocalDate.now().plusDays(1).toString(), LocalDate.now().plusDays(2).toString(), 1, "Waiting", g2, null);
-        b2.setRequestedRoomType("Standard Double");
+    private void recalculateCounters() {
+        int maxGuest = 100;
+        int maxBooking = 1000;
 
-        Booking b3 = new Booking("B1003", today, today, LocalDate.now().plusDays(3).toString(), 3, "Waiting", g3, null);
-        b3.setRequestedRoomType("Deluxe Suite");
-
-        singleQueue.enqueue(b1);
-        doubleQueue.enqueue(b2);
-        deluxeQueue.enqueue(b3);
-
-        this.guestCounter = 104;
-        this.bookingCounter = 1004;
+        QueueInterface<Booking> all = getAllBookingsIncludingConfirmed();
+        while (!all.isEmpty()) {
+            Booking b = all.dequeue();
+            if (b.getBookingID() != null && b.getBookingID().startsWith("B")) {
+                try {
+                    int bNum = Integer.parseInt(b.getBookingID().substring(1));
+                    if (bNum > maxBooking) maxBooking = bNum;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            if (b.getGuest() != null && b.getGuest().getGuestID() != null && b.getGuest().getGuestID().startsWith("G")) {
+                try {
+                    int gNum = Integer.parseInt(b.getGuest().getGuestID().substring(1));
+                    if (gNum > maxGuest) maxGuest = gNum;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        this.guestCounter = maxGuest + 1;
+        this.bookingCounter = maxBooking + 1;
     }
 
     public String generateGuestID() {
@@ -100,11 +129,13 @@ public class BookingControl {
         newBooking.setRequestedRoomType(requestedRoomType);
         getQueueByRoomType(requestedRoomType).enqueue(newBooking);
 
+        saveAllBookings();
         return newBooking;
     }
 
     /**
-     * Assigns a room to the next guest in line for a specific room type.
+     * Assigns a room to the next guest in line for a specific room type and passes
+     * it to Front Desk for Confirmation Number assignment.
      */
     public Booking assignRoomByRoomType(String roomType) {
         QueueInterface<Booking> targetQueue = getQueueByRoomType(roomType);
@@ -119,23 +150,45 @@ public class BookingControl {
         if (assignedRoom != null) {
             assignedRoom.setRoomStatus("Occupied");
             nextBooking.setRoom(assignedRoom);
-            nextBooking.setBookingStatus("Confirmed");
-            confirmedBookings.enqueue(nextBooking);
+            nextBooking.setBookingStatus("Assigned - Pending Front Desk Confirmation");
+
+            pendingWalkInConfirmations.enqueue(nextBooking);
+
+            if (frontDeskControl != null) {
+                frontDeskControl.addPendingWalkInBooking(nextBooking);
+            }
+
+            saveAllBookings();
+            FileHandler.saveRooms(availableRooms);
             return nextBooking;
         }
 
         return null;
     }
 
+    public void markBookingConfirmed(Booking booking) {
+        if (booking == null) return;
+        removeFromQueue(pendingWalkInConfirmations, booking.getBookingID());
+        confirmedBookings.enqueue(booking);
+        saveAllBookings();
+    }
+
     public boolean cancelBooking(String bookingID) {
-        if (removeFromQueue(singleQueue, bookingID)) return true;
-        if (removeFromQueue(doubleQueue, bookingID)) return true;
-        if (removeFromQueue(deluxeQueue, bookingID)) return true;
-        return removeFromQueue(executiveQueue, bookingID);
+        boolean removed = removeFromQueue(singleQueue, bookingID)
+                || removeFromQueue(doubleQueue, bookingID)
+                || removeFromQueue(deluxeQueue, bookingID)
+                || removeFromQueue(executiveQueue, bookingID)
+                || removeFromQueue(presidentialQueue, bookingID)
+                || removeFromQueue(pendingWalkInConfirmations, bookingID);
+
+        if (removed) {
+            saveAllBookings();
+        }
+        return removed;
     }
 
     private boolean removeFromQueue(QueueInterface<Booking> queue, String bookingID) {
-        if (queue.isEmpty()) return false;
+        if (queue.isEmpty() || bookingID == null) return false;
 
         QueueInterface<Booking> tempQueue = new LinkedQueue<>();
         boolean found = false;
@@ -161,12 +214,14 @@ public class BookingControl {
         if (found == null) found = searchInQueue(doubleQueue, bookingID);
         if (found == null) found = searchInQueue(deluxeQueue, bookingID);
         if (found == null) found = searchInQueue(executiveQueue, bookingID);
+        if (found == null) found = searchInQueue(presidentialQueue, bookingID);
+        if (found == null) found = searchInQueue(pendingWalkInConfirmations, bookingID);
         if (found == null) found = searchInQueue(confirmedBookings, bookingID);
         return found;
     }
 
     private Booking searchInQueue(QueueInterface<Booking> queue, String bookingID) {
-        if (queue.isEmpty()) return null;
+        if (queue.isEmpty() || bookingID == null) return null;
 
         QueueInterface<Booking> tempQueue = new LinkedQueue<>();
         Booking result = null;
@@ -192,7 +247,23 @@ public class BookingControl {
         copyQueueFrom(doubleQueue, copyQueue);
         copyQueueFrom(deluxeQueue, copyQueue);
         copyQueueFrom(executiveQueue, copyQueue);
+        copyQueueFrom(presidentialQueue, copyQueue);
         return copyQueue;
+    }
+
+    public QueueInterface<Booking> getAllBookingsIncludingConfirmed() {
+        QueueInterface<Booking> all = getAllWaitingBookings();
+        copyQueueFrom(pendingWalkInConfirmations, all);
+        copyQueueFrom(confirmedBookings, all);
+        return all;
+    }
+
+    public QueueInterface<Booking> getPendingWalkInConfirmations() {
+        return pendingWalkInConfirmations;
+    }
+
+    public int getPendingConfirmationsCount() {
+        return pendingWalkInConfirmations.size();
     }
 
     private void copyQueueFrom(QueueInterface<Booking> source, QueueInterface<Booking> destination) {
@@ -209,12 +280,12 @@ public class BookingControl {
 
     public QueueInterface<Booking> getQueueByRoomType(String type) {
         if (type == null) return singleQueue;
-        switch (type.trim().toLowerCase()) {
-            case "standard double": return doubleQueue;
-            case "deluxe suite": return deluxeQueue;
-            case "executive suite": return executiveQueue;
-            default: return singleQueue;
-        }
+        String lower = type.trim().toLowerCase();
+        if (lower.contains("presidential")) return presidentialQueue;
+        if (lower.contains("executive")) return executiveQueue;
+        if (lower.contains("deluxe")) return deluxeQueue;
+        if (lower.contains("double")) return doubleQueue;
+        return singleQueue;
     }
 
     public int getAvailableRoomCountByType(String roomType) {
@@ -223,7 +294,7 @@ public class BookingControl {
 
         while (!availableRooms.isEmpty()) {
             Room r = availableRooms.dequeue();
-            if (r.getRoomType().equalsIgnoreCase(roomType)) {
+            if (r.getRoomType().equalsIgnoreCase(roomType) || matchesRoomType(r.getRoomType(), roomType)) {
                 count++;
             }
             tempQueue.enqueue(r);
@@ -236,13 +307,18 @@ public class BookingControl {
         return count;
     }
 
+    private boolean matchesRoomType(String actual, String expected) {
+        if (actual == null || expected == null) return false;
+        return actual.trim().equalsIgnoreCase(expected.trim());
+    }
+
     private Room extractRoomByType(String roomType) {
         QueueInterface<Room> tempQueue = new LinkedQueue<>();
         Room targetRoom = null;
 
         while (!availableRooms.isEmpty()) {
             Room current = availableRooms.dequeue();
-            if (targetRoom == null && current.getRoomType().equalsIgnoreCase(roomType)) {
+            if (targetRoom == null && (current.getRoomType().equalsIgnoreCase(roomType) || matchesRoomType(current.getRoomType(), roomType))) {
                 targetRoom = current;
             } else {
                 tempQueue.enqueue(current);
@@ -256,12 +332,54 @@ public class BookingControl {
         return targetRoom;
     }
 
-    public int getWaitingCount() { 
-        return singleQueue.size() + doubleQueue.size() + deluxeQueue.size() + executiveQueue.size(); 
+    private void saveAllBookings() {
+        FileHandler.saveBookings(singleQueue, doubleQueue, deluxeQueue, executiveQueue, presidentialQueue, pendingWalkInConfirmations, confirmedBookings);
     }
+
+    public int getWaitingCount() { 
+        return singleQueue.size() + doubleQueue.size() + deluxeQueue.size() + executiveQueue.size() + presidentialQueue.size(); 
+    }
+
     public int getWaitingCountByType(String roomType) {
         return getQueueByRoomType(roomType).size();
     }
-    public int getConfirmedCount() { return confirmedBookings.size(); }
-    public int getAvailableRoomsCount() { return availableRooms.size(); }
+
+    public int getConfirmedCount() { 
+        return confirmedBookings.size(); 
+    }
+
+    public void markRoomAvailable(String roomNumber) {
+        if (roomNumber == null || roomNumber.trim().isEmpty()) return;
+
+        // Check if room is already in availableRooms
+        boolean exists = false;
+        QueueInterface<Room> temp = new LinkedQueue<>();
+        while (!availableRooms.isEmpty()) {
+            Room r = availableRooms.dequeue();
+            if (r.getRoomNumber().equalsIgnoreCase(roomNumber.trim())) {
+                exists = true;
+                r.setRoomStatus("Available");
+            }
+            temp.enqueue(r);
+        }
+        while (!temp.isEmpty()) {
+            availableRooms.enqueue(temp.dequeue());
+        }
+
+        if (!exists) {
+            java.util.List<Room> all = FileHandler.loadAllHotelRooms();
+            for (Room r : all) {
+                if (r.getRoomNumber().equalsIgnoreCase(roomNumber.trim())) {
+                    r.setRoomStatus("Available");
+                    availableRooms.enqueue(r);
+                    break;
+                }
+            }
+        }
+        FileHandler.saveRooms(availableRooms);
+    }
+
+    public int getAvailableRoomsCount() { 
+        return availableRooms.size(); 
+    }
 }
