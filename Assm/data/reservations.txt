@@ -1,0 +1,14 @@
+10008801|Tan Ah Kow|Deluxe|D-101|3|450.00|Checked-In
+10008802|Alex Muthu|Standard|A-005|1|120.00|Checked-Out
+10008804|Alice Smith|Suite|S-201|2|1100.00|Checked-In
+10008805|Siti Nurhaliza|Suite|S-202|5|2500.00|Reserved
+10008809|John Doe|Presidential|P-501|7|8400.00|Checked-In
+10008810|Michael Chen|Standard|A-002|2|240.00|Checked-In
+10008811|Sarah Lim|Standard|A-003|4|480.00|Reserved
+10008812|David Wong|Deluxe|D-105|0|0.00|Maintenance
+10008813|Emma Brown|Suite|S-205|0|0.00|Cleaning
+10008814|Ahmad Ali|Deluxe|D-103|2|300.00|Checked-In
+10008815||||1|120.00|Checked-In
+10008816|Alice Tan|Standard|A-001|4|480.00|Checked-In
+10008817|Bob Lee|Standard|A-005|1|150.00|Checked-In
+10008818|Clement|Presidential|P-501|6|7200.00|Checked-In

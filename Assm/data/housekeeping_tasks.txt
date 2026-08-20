@@ -1,0 +1,2 @@
+T001|S-205|Room Cleaning|Cleaning In Progress|S001
+T004|A-005|Room Cleaning|Dirty|S001

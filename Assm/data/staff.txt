@@ -1,0 +1,2 @@
+S001|John|john@email.com|Morning|Housekeeper
+S002|Mary|mary@email.com|Afternoon|Housekeeper
