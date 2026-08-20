@@ -1,10 +1,11 @@
 package main;
 
+import boundary.HouseKeepingUI;
 import boundary.WalkInRegistrationUI;
+import control.BookingControl;
 import control.FrontDeskControl;
+import control.HouseKeepingControl;
 // Import teammate UI classes when ready:
-// import boundary.FrontDeskUI;
-// import boundary.HousekeepingUI;
 // import boundary.LoyaltyRewardsUI;
 
 import java.util.Scanner;
@@ -21,18 +22,23 @@ public class TARUMTResortsSystem {
     // Module UI instances
     private final WalkInRegistrationUI walkInUI;
     private final FrontDeskControl frontDeskControl;
-    // private final FrontDeskUI frontDeskUI;
-    // private final HousekeepingUI housekeepingUI;
+    private final HouseKeepingUI housekeepingUI;
     // private final LoyaltyRewardsUI loyaltyUI;
 
     public TARUMTResortsSystem() {
         this.scanner = new Scanner(System.in);
 
-        // Initialize Module UI instances
-        this.walkInUI = new WalkInRegistrationUI();
+        // Initialize all controllers with SHARED cross-module linkage:
+        // FrontDesk <-> BookingControl <-> HouseKeepingControl
         this.frontDeskControl = new FrontDeskControl();
-        // this.frontDeskUI = new FrontDeskUI();
-        // this.housekeepingUI = new HousekeepingUI();
+        HouseKeepingControl houseKeepingControl = new HouseKeepingControl();
+        BookingControl bookingControl = new BookingControl(frontDeskControl, houseKeepingControl);
+
+        // Bi-directional link FrontDesk <-> Housekeeping
+        frontDeskControl.setHouseKeepingControl(houseKeepingControl);
+
+        this.walkInUI = new WalkInRegistrationUI(bookingControl);
+        this.housekeepingUI = new HouseKeepingUI(houseKeepingControl);
         // this.loyaltyUI = new LoyaltyRewardsUI();
     }
 
@@ -68,11 +74,7 @@ public class TARUMTResortsSystem {
                 }
 
                 case 3 -> {
-                    // Teammate 3: Housekeeping Task Log
-                    System.out.println("\n  [ NOTICE ] Opening Housekeeping Task Log Module...");
-                    System.out.println("  (Module pending integration by Teammate 3)");
-                    // housekeepingUI.displayMenu();
-                    pressEnterToContinue();
+                    housekeepingUI.displayMenu();
                 }
 
                 case 4 -> {
