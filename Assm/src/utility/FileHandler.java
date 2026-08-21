@@ -73,14 +73,12 @@ public class FileHandler {
                     int stayDays = Integer.parseInt(parts[4].trim());
                     double totalBill = Double.parseDouble(parts[5].trim());
                     String status = parts[6].trim();
-                    String checkInDate = (parts.length >= 8 && !parts[7].trim().isEmpty()) 
-                        ? parts[7].trim() 
-                        : java.time.LocalDate.now().toString();
-                    String checkOutDate = (parts.length >= 9 && !parts[8].trim().isEmpty()) 
-                        ? parts[8].trim() 
-                        : java.time.LocalDate.now().plusDays(stayDays).toString();
+                    String checkInDate  = parts.length >= 8 ? parts[7].trim() : "";
+                    String checkOutDate = parts.length >= 9 ? parts[8].trim() : "";
 
-                    Reservation res = new Reservation(confirmNo, guestName, roomCategory, roomNo, stayDays, totalBill, status, checkInDate, checkOutDate);
+                    Reservation res = new Reservation(confirmNo, guestName, roomCategory, roomNo, stayDays, totalBill, status,
+                            checkInDate.isEmpty() ? null : checkInDate,
+                            checkOutDate.isEmpty() ? null : checkOutDate);
                     reservationTree.add(res);
                 }
             }
