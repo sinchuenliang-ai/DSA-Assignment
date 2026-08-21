@@ -470,9 +470,9 @@ public String inputGuestName() {
           }
         }
         double change = tendered - totalAmount;
-        System.out.println("\n  [✔] Cash received: RM " + String.format("%.2f", tendered));
-        System.out.println("  [✔] Change:        RM " + String.format("%.2f", change));
-        System.out.println("  [✔] Payment SUCCESSFUL!\n");
+        System.out.println("\n  [✓] Cash received: RM " + String.format("%.2f", tendered));
+        System.out.println("  [✓] Change:        RM " + String.format("%.2f", change));
+        System.out.println("  [✓] Payment SUCCESSFUL!\n");
         return "Cash";
       }
 
@@ -511,8 +511,8 @@ public String inputGuestName() {
         
         System.out.println("\n  Authorizing transaction...");
         System.out.printf("  Charging RM %.2f to %s (**** **** **** %s)...%n", totalAmount, cardLabel, last4);
-        System.out.println("  [✔] Card authorized successfully.");
-        System.out.println("  [✔] Payment SUCCESSFUL!\n");
+        System.out.println("  [✓] Card authorized successfully.");
+        System.out.println("  [✓] Payment SUCCESSFUL!\n");
 
         return "Card (" + cardLabel + " **" + last4 + ")";
       }
@@ -521,8 +521,8 @@ public String inputGuestName() {
         displayQRCode(totalAmount);
         System.out.print("\n  Press ENTER after completing QR payment to confirm...");
         scanner.nextLine();
-        System.out.println("  [✔] QR Payment recorded.");
-        System.out.println("  [✔] Payment SUCCESSFUL!\n");
+        System.out.println("  [✓] QR Payment recorded.");
+        System.out.println("  [✓] Payment SUCCESSFUL!\n");
         return "QR Payment (Touch 'n Go / DuitNow)";
       }
 

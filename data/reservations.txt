@@ -6,7 +6,7 @@
 10008810|Michael Chen|Standard|A-002|2|240.00|Checked-Out
 10008811|Sarah Lim|Standard|A-003|4|480.00|Checked-Out
 10008812|David Wong|Deluxe|D-105|0|0.00|Maintenance
-10008813|Lemma Green|Standard Single|A-001|9|1080.00|Checked-In
+10008813|Lemma Green|Standard Single|A-001|9|1080.00|Checked-Out
 10008814|Ahmad Ali|Deluxe|D-103|2|300.00|Checked-In
 10008815|Alice Tan|Standard|A-002|3|360.00|Checked-In
 10008816|Alice Tan|Standard|A-002|4|480.00|Checked-In
