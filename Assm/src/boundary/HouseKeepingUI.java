@@ -40,12 +40,13 @@ public class HouseKeepingUI {
             System.out.println("\n========================================");
             System.out.println("   HOUSEKEEPING STATUS MANAGEMENT");
             System.out.println("========================================");
-            System.out.println("1. View Current Room Status");
-            System.out.println("2. Update Room Status");
-            System.out.println("3. Rollback Last Status");
-            System.out.println("4. Display Status History");
-            System.out.println("5. Room Checked-In (Complete Cycle)");
-            System.out.println("6. Exit");
+            System.out.println("1. Add New Housekeeping Task");
+            System.out.println("2. View Current Room Status");
+            System.out.println("3. Update Room Status");
+            System.out.println("4. Rollback Last Status");
+            System.out.println("5. Display Status History");
+            System.out.println("6. Room Checked-In (Complete Cycle)");
+            System.out.println("7. Exit");
             System.out.println("========================================");
             System.out.print("Enter your choice: ");
 
@@ -58,17 +59,97 @@ public class HouseKeepingUI {
             switch (choice) {
 
                 // =================================================
-                // 1. VIEW CURRENT ROOM STATUS
+                // 1. ADD NEW HOUSEKEEPING TASK
                 // =================================================
                 case 1:
+                    System.out.println("\n===== ADD NEW HOUSEKEEPING TASK =====");
+
+                    // Show master hotel room list with housekeeping status
+                    List<Room> allRooms = FileHandler.loadAllHotelRooms();
+                    Map<String, HousekeepingTask> activeHkMap = manager.getAllActiveTasksMap();
+
+                    System.out.println("\n--- Available Hotel Rooms ---");
+                    System.out.printf("%-5s %-10s %-20s %-10s %-25s\n",
+                            "No.", "Room No.", "Room Type", "Inventory", "Housekeeping Status");
+                    System.out.println("--------------------------------------------------------------------------");
+
+                    int idx = 0;
+                    for (Room r : allRooms) {
+                        idx++;
+                        HousekeepingTask hkTask = activeHkMap.get(r.getRoomNumber().toUpperCase());
+                        String hkStatus = hkTask != null ? hkTask.getStatus() : "-";
+                        System.out.printf("%-5d %-10s %-20s %-10s %-25s\n",
+                                idx, r.getRoomNumber(), r.getRoomType(), r.getRoomStatus(), hkStatus);
+                    }
+                    System.out.println("--------------------------------------------------------------------------");
+
+                    System.out.print("Select Room Number (e.g. A-001) or type 0 to cancel: ");
+                    String location = scanner.nextLine().trim();
+
+                    if (location.equals("0") || location.isEmpty()) {
+                        System.out.println("Cancelled.");
+                        break;
+                    }
+
+                    // Validate room exists in hotel
+                    boolean roomExists = allRooms.stream()
+                            .anyMatch(r -> r.getRoomNumber().equalsIgnoreCase(location));
+                    if (!roomExists) {
+                        System.out.println("  [!] Warning: Room '" + location + "' not found in master hotel room list.");
+                        System.out.print("Continue anyway? (Y/N): ");
+                        String confirm = scanner.nextLine().trim();
+                        if (!confirm.equalsIgnoreCase("Y")) {
+                            System.out.println("Cancelled.");
+                            break;
+                        }
+                    }
+
+                    String taskName = "Room Cleaning";
+
+                    // SELECT STAFF
+                    if (staffList.isEmpty()) {
+                        System.out.println("No staff found in staff directory.");
+                        break;
+                    }
+
+                    System.out.println("\nAvailable Staff:");
+                    for (int i = 0; i < staffList.size(); i++) {
+                        Staff s = staffList.get(i);
+                        System.out.println((i + 1) + ". " + s.getStaffID() + " - " + s.getStaffName() + " (" + s.getShift() + " Shift)");
+                    }
+
+                    System.out.print("Select Staff (1-" + staffList.size() + "): ");
+                    int staffChoice;
+                    try {
+                        staffChoice = Integer.parseInt(scanner.nextLine().trim());
+                    } catch (NumberFormatException e) {
+                        staffChoice = -1;
+                    }
+
+                    if (staffChoice < 1 || staffChoice > staffList.size()) {
+                        System.out.println("Invalid staff choice.");
+                        break;
+                    }
+
+                    String assignedStaffID = staffList.get(staffChoice - 1).getStaffID();
+
+                    // CREATE NEW TASK
+                    HousekeepingTask newTask = new HousekeepingTask(null, location, taskName, "Dirty", assignedStaffID);
+                    manager.addTask(newTask);
+                    break;
+
+                // =================================================
+                // 2. VIEW CURRENT ROOM STATUS
+                // =================================================
+                case 2:
                     System.out.println("\n===== CURRENT ROOM STATUS =====");
                     manager.displayCurrentRoomStatus();
                     break;
 
                 // =================================================
-                // 2. UPDATE ROOM STATUS
+                // 3. UPDATE ROOM STATUS
                 // =================================================
-                case 2:
+                case 3:
                     System.out.println("\n===== UPDATE ROOM STATUS =====");
 
                     HousekeepingTask current = manager.viewCurrentStatus();
@@ -132,33 +213,33 @@ public class HouseKeepingUI {
                     break;
 
                 // =================================================
-                // 3. ROLLBACK LAST STATUS
+                // 4. ROLLBACK LAST STATUS
                 // =================================================
-                case 3:
+                case 4:
                     System.out.println("\n===== ROLLBACK LAST STATUS =====");
                     manager.rollbackStatus();
                     break;
 
                 // =================================================
-                // 4. DISPLAY STATUS HISTORY
+                // 5. DISPLAY STATUS HISTORY
                 // =================================================
-                case 4:
+                case 5:
                     System.out.println("\n===== STATUS HISTORY =====");
                     manager.displayStatusHistory();
                     break;
 
                 // =================================================
-                // 5. ROOM CHECKED-IN (Complete cycle)
+                // 6. ROOM CHECKED-IN (Complete cycle)
                 // =================================================
-                case 5:
+                case 6:
                     System.out.println("\n===== ROOM CHECKED-IN =====");
                     manager.completeHousekeepingCycle();
                     break;
 
                 // =================================================
-                // 6. EXIT
+                // 7. EXIT
                 // =================================================
-                case 6:
+                case 7:
                     System.out.println("\nThank you for using the Housekeeping Status Management System.");
                     break;
 
@@ -170,7 +251,7 @@ public class HouseKeepingUI {
                     break;
             }
 
-        } while (choice != 6);
+        } while (choice != 7);
     }
 
     // =========================================================

@@ -1,3 +1,5 @@
-B1003|2026-08-20|2026-08-20|2026-08-23|3|Waiting|Deluxe Suite|G103|Charlie Wong|Male|014-1122334|charlie@gmail.com|IC990303|null
-B1005|2026-08-20|2026-08-20|2026-08-21|1|Waiting|Presidential Suite|G105|lipgun|Female|142414141|124141@gmail.com|1241141414|null
-B1004|2026-08-20|2026-08-20|2026-08-21|1|Confirmed (Conf: 10008819)|Presidential Suite|G104|Naim|Female|0191241414|q412421@gmail.com|10241441241|P-502
+B1006|2026-08-21|2026-08-21|2026-08-22|1|Waiting|Standard Single|G106|Naim|Female|0190098789|naim@gmail.com|090988981231|null
+B1002|2026-08-20|2026-08-21|2026-08-22|1|Waiting|Standard Double|G102|Bob Lee|Male|013-9876543|bob@gmail.com|IC880202|null
+B1005|2026-08-21|2026-08-21|2026-08-23|1|Waiting|Deluxe Suite|G105|Henry Tan|Male|016-1234567|henry@test.com|IC901010|null
+B1004|2026-08-21|2026-08-21|2026-08-24|2|Assigned - Pending Front Desk Confirmation|Standard Single|G104|David Beckham|Male|012-7778899|david@beckham.com|IC750502|A-001
+B1003|2026-08-20|2026-08-20|2026-08-23|3|Confirmed (Conf: 10008817)|Deluxe Suite|G103|Charlie Wong|Male|014-1122334|charlie@gmail.com|IC990303|D-102

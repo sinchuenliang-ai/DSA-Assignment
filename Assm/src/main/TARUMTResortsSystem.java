@@ -5,8 +5,7 @@ import boundary.WalkInRegistrationUI;
 import control.BookingControl;
 import control.FrontDeskControl;
 import control.HouseKeepingControl;
-// Import teammate UI classes when ready:
-// import boundary.LoyaltyRewardsUI;
+import control.LoyaltyControl;
 
 import java.util.Scanner;
 
@@ -23,7 +22,7 @@ public class TARUMTResortsSystem {
     private final WalkInRegistrationUI walkInUI;
     private final FrontDeskControl frontDeskControl;
     private final HouseKeepingUI housekeepingUI;
-    // private final LoyaltyRewardsUI loyaltyUI;
+    private final LoyaltyControl loyaltyControl;
 
     public TARUMTResortsSystem() {
         this.scanner = new Scanner(System.in);
@@ -39,7 +38,9 @@ public class TARUMTResortsSystem {
 
         this.walkInUI = new WalkInRegistrationUI(bookingControl);
         this.housekeepingUI = new HouseKeepingUI(houseKeepingControl);
-        // this.loyaltyUI = new LoyaltyRewardsUI();
+        this.loyaltyControl = new LoyaltyControl();
+        bookingControl.setLoyaltyControl(this.loyaltyControl);
+        frontDeskControl.setLoyaltyControl(this.loyaltyControl);
     }
 
     public static void main(String[] args) {
@@ -78,11 +79,7 @@ public class TARUMTResortsSystem {
                 }
 
                 case 4 -> {
-                    // Teammate 4: Loyalty & Rewards
-                    System.out.println("\n  [ NOTICE ] Opening Loyalty & Rewards System Module...");
-                    System.out.println("  (Module pending integration by Teammate 4)");
-                    // loyaltyUI.displayMenu();
-                    pressEnterToContinue();
+                    loyaltyControl.runService();
                 }
 
                 case 0 -> {

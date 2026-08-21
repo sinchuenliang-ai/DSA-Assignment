@@ -26,6 +26,7 @@ public class BookingControl {
 
     private FrontDeskControl frontDeskControl;
     private HouseKeepingControl houseKeepingControl;
+    private LoyaltyControl loyaltyControl;
 
     private int guestCounter = 101;
     private int bookingCounter = 1001;
@@ -81,6 +82,14 @@ public class BookingControl {
 
     public HouseKeepingControl getHouseKeepingControl() {
         return houseKeepingControl;
+    }
+
+    public void setLoyaltyControl(LoyaltyControl loyaltyControl) {
+        this.loyaltyControl = loyaltyControl;
+    }
+
+    public LoyaltyControl getLoyaltyControl() {
+        return loyaltyControl;
     }
 
     private void recalculateCounters() {

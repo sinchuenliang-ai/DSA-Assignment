@@ -4,12 +4,17 @@ import adt.ArrayStack;
 import adt.LinkedQueue;
 import adt.QueueInterface;
 import adt.TreeInterface;
+import adt.ListInterface;
+import adt.LinkedList;
 import entity.Booking;
 import entity.Guest;
 import entity.HousekeepingTask;
 import entity.Reservation;
 import entity.Room;
 import entity.Staff;
+import entity.Member;
+import entity.Transaction;
+import entity.Notification;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -28,6 +33,9 @@ public class FileHandler {
     private static final String BOOKINGS_FILE = DATA_DIR + File.separator + "bookings.txt";
     private static final String STAFF_FILE = DATA_DIR + File.separator + "staff.txt";
     private static final String HOUSEKEEPING_FILE = DATA_DIR + File.separator + "housekeeping_tasks.txt";
+    private static final String MEMBERS_FILE = DATA_DIR + File.separator + "members.txt";
+    private static final String TRANSACTIONS_FILE = DATA_DIR + File.separator + "transactions.txt";
+    private static final String NOTIFICATIONS_FILE = DATA_DIR + File.separator + "notifications.txt";
 
     static {
         ensureDataDirectoryExists();
@@ -392,6 +400,18 @@ public class FileHandler {
         return staffList;
     }
 
+    public static Staff authenticateStaff(String staffID, String password) {
+        List<Staff> staffList = loadStaff();
+        for (Staff s : staffList) {
+            if (s.getStaffID().equalsIgnoreCase(staffID)) {
+                if (s.authenticate(password)) {
+                    return s;
+                }
+            }
+        }
+        return null;
+    }
+
     public static void saveStaff(List<Staff> staffList) {
         try (PrintWriter writer = new PrintWriter(new FileWriter(STAFF_FILE))) {
             for (Staff s : staffList) {
@@ -494,6 +514,279 @@ public class FileHandler {
             writer.println("T002|A-005|Room Cleaning|Dirty|S002");
         } catch (IOException e) {
             System.err.println("[FileHandler] Error creating default housekeeping file: " + e.getMessage());
+        }
+    }
+
+    // =========================================================================
+    // 6. LOYALTY - MEMBERS
+    // =========================================================================
+
+    public static ListInterface<Member> loadMembers() {
+        File file = new File(MEMBERS_FILE);
+        ListInterface<Member> memberList = new LinkedList<>();
+        
+        if (!file.exists()) {
+            createDefaultMembersFile();
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) continue;
+
+                String[] parts = line.split("\\|", -1);
+                if (parts.length >= 10) {
+                    Member member = new Member(
+                        parts[0].trim(),
+                        parts[1].trim(),
+                        parts[2].trim(),
+                        parts[3].trim()
+                    );
+                    member.setTier(parts[4].trim());
+                    member.setPoints(Integer.parseInt(parts[5].trim()));
+                    member.setTotalPointsEarned(Integer.parseInt(parts[6].trim()));
+                    member.setLifetimePointsEarned(Integer.parseInt(parts[7].trim()));
+                    member.setTotalRedemptions(Integer.parseInt(parts[8].trim()));
+                    member.setPointsRedeemed(Integer.parseInt(parts[9].trim()));
+                    if (parts.length >= 11 && !parts[10].trim().isEmpty()) {
+                        member.setDateOfBirth(java.time.LocalDate.parse(parts[10].trim()));
+                    }
+                    if (parts.length >= 12 && !parts[11].trim().isEmpty()) {
+                        member.setPreferredRoomType(parts[11].trim());
+                    }
+                    memberList.add(member);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[FileHandler] Error loading members: " + e.getMessage());
+        }
+        
+        return memberList;
+    }
+
+    public static void saveMembers(ListInterface<Member> memberList) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(MEMBERS_FILE))) {
+            for (int i = 1; i <= memberList.getNumberOfEntries(); i++) {
+                Member m = memberList.getEntry(i);
+                writer.println(String.format("%s|%s|%s|%s|%s|%d|%d|%d|%d|%d|%s|%s",
+                    m.getMemberId(),
+                    m.getName(),
+                    m.getEmail(),
+                    m.getPhoneNumber(),
+                    m.getTier(),
+                    m.getPoints(),
+                    m.getTotalPointsEarned(),
+                    m.getLifetimePointsEarned(),
+                    m.getTotalRedemptions(),
+                    m.getPointsRedeemed(),
+                    m.getDateOfBirth() != null ? m.getDateOfBirth().toString() : "",
+                    m.getPreferredRoomType() != null ? m.getPreferredRoomType() : ""
+                ));
+            }
+        } catch (IOException e) {
+            System.err.println("[FileHandler] Error saving members: " + e.getMessage());
+        }
+    }
+
+    private static void createDefaultMembersFile() {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(MEMBERS_FILE))) {
+            writer.println("M001|John Smith|john.smith@email.com|012-345-6789|Gold|1500|1500|1500|0|0|1985-05-15|Deluxe Suite");
+            writer.println("M002|Sarah Lee|sarah.lee@email.com|013-987-6543|Platinum|6000|6000|6000|0|0|1990-08-22|Ocean View");
+            writer.println("M003|Ahmed Hassan|ahmed.h@email.com|014-567-8901|Silver|250|250|250|0|0|1978-03-10|");
+            writer.println("M004|Priya Patel|priya.p@email.com|015-234-5678|Diamond|18000|18000|18000|0|0|1988-11-30|Executive Suite");
+            writer.println("M005|David Tan|david.t@email.com|016-789-0123|Elite|35000|35000|35000|0|0|1975-07-08|Presidential Suite");
+        } catch (IOException e) {
+            System.err.println("[FileHandler] Error creating default members file: " + e.getMessage());
+        }
+    }
+
+    // =========================================================================
+    // 7. LOYALTY - TRANSACTIONS
+    // =========================================================================
+
+    public static QueueInterface<Transaction> loadTransactions() {
+        File file = new File(TRANSACTIONS_FILE);
+        QueueInterface<Transaction> transactionQueue = new LinkedQueue<>();
+        
+        if (!file.exists()) {
+            createDefaultTransactionsFile();
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) continue;
+
+                String[] parts = line.split("\\|", -1);
+                if (parts.length >= 4) {
+                    String memberId = parts[0].trim();
+                    String typeStr = parts[1].trim();
+                    int points = Integer.parseInt(parts[2].trim());
+                    String description = parts[3].trim();
+                    String bookingId = parts.length >= 5 ? parts[4].trim() : "";
+                    
+                    Transaction.TransactionType type;
+                    switch (typeStr) {
+                        case "EARN_POINTS": type = Transaction.TransactionType.EARN_POINTS; break;
+                        case "REDEEM_POINTS": type = Transaction.TransactionType.REDEEM_POINTS; break;
+                        case "BONUS_POINTS": type = Transaction.TransactionType.BONUS_POINTS; break;
+                        case "TIER_UPGRADE_BONUS": type = Transaction.TransactionType.TIER_UPGRADE_BONUS; break;
+                        case "ADJUSTMENT": type = Transaction.TransactionType.ADJUSTMENT; break;
+                        default: type = Transaction.TransactionType.EARN_POINTS;
+                    }
+                    
+                    Transaction txn = new Transaction(memberId, type, points, description, bookingId);
+                    transactionQueue.enqueue(txn);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[FileHandler] Error loading transactions: " + e.getMessage());
+        }
+        
+        return transactionQueue;
+    }
+
+    public static void saveTransactions(QueueInterface<Transaction> transactionQueue) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(TRANSACTIONS_FILE))) {
+            QueueInterface<Transaction> temp = new LinkedQueue<>();
+            while (!transactionQueue.isEmpty()) {
+                Transaction t = transactionQueue.dequeue();
+                writer.println(String.format("%s|%s|%d|%s|%s",
+                    t.getMemberId(),
+                    t.getType().toString(),
+                    t.getPoints(),
+                    t.getDescription(),
+                    t.getBookingId() != null ? t.getBookingId() : ""
+                ));
+                temp.enqueue(t);
+            }
+            while (!temp.isEmpty()) {
+                transactionQueue.enqueue(temp.dequeue());
+            }
+        } catch (IOException e) {
+            System.err.println("[FileHandler] Error saving transactions: " + e.getMessage());
+        }
+    }
+
+    private static void createDefaultTransactionsFile() {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(TRANSACTIONS_FILE))) {
+            writer.println("M001|EARN_POINTS|1500|Stay at Deluxe Suite - 3 nights|B001");
+            writer.println("M002|EARN_POINTS|6000|Stay at Ocean View Suite - 5 nights|B002");
+            writer.println("M003|EARN_POINTS|250|Stay at Standard Room - 2 nights|B003");
+            writer.println("M004|EARN_POINTS|18000|Stay at Executive Suite - 7 nights|B004");
+            writer.println("M005|EARN_POINTS|35000|Stay at Presidential Suite - 10 nights|B005");
+        } catch (IOException e) {
+            System.err.println("[FileHandler] Error creating default transactions file: " + e.getMessage());
+        }
+    }
+
+    // =========================================================================
+    // 8. LOYALTY - NOTIFICATIONS
+    // =========================================================================
+
+    public static ListInterface<Notification> loadNotifications() {
+        File file = new File(NOTIFICATIONS_FILE);
+        ListInterface<Notification> notificationList = new LinkedList<>();
+        
+        if (!file.exists()) {
+            createDefaultNotificationsFile();
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) continue;
+
+                String[] parts = line.split("\\|", -1);
+                if (parts.length >= 4) {
+                    String memberId = parts[0].trim();
+                    String typeStr = parts[1].trim();
+                    String title = parts[2].trim();
+                    String message = parts[3].trim();
+                    
+                    Notification.NotificationType type;
+                    switch (typeStr) {
+                        case "TIER_UPGRADE": type = Notification.NotificationType.TIER_UPGRADE; break;
+                        case "TIER_MAINTENANCE": type = Notification.NotificationType.TIER_MAINTENANCE; break;
+                        case "POINTS_EARNED": type = Notification.NotificationType.POINTS_EARNED; break;
+                        case "POINTS_EXPIRY": type = Notification.NotificationType.POINTS_EXPIRY; break;
+                        case "REDEMPTION_CONFIRMATION": type = Notification.NotificationType.REDEMPTION_CONFIRMATION; break;
+                        case "PROMOTIONAL_OFFER": type = Notification.NotificationType.PROMOTIONAL_OFFER; break;
+                        case "BIRTHDAY_BONUS": type = Notification.NotificationType.BIRTHDAY_BONUS; break;
+                        default: type = Notification.NotificationType.TIER_MAINTENANCE;
+                    }
+                    
+                    Notification notif = new Notification(memberId, type, title, message);
+                    notificationList.add(notif);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[FileHandler] Error loading notifications: " + e.getMessage());
+        }
+        
+        return notificationList;
+    }
+
+    public static void saveNotifications(ListInterface<Notification> notificationList) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(NOTIFICATIONS_FILE))) {
+            for (int i = 1; i <= notificationList.getNumberOfEntries(); i++) {
+                Notification n = notificationList.getEntry(i);
+                writer.println(String.format("%s|%s|%s|%s",
+                    n.getMemberId(),
+                    n.getType().toString(),
+                    n.getTitle(),
+                    n.getMessage()
+                ));
+            }
+        } catch (IOException e) {
+            System.err.println("[FileHandler] Error saving notifications: " + e.getMessage());
+        }
+    }
+
+    private static void createDefaultNotificationsFile() {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(NOTIFICATIONS_FILE))) {
+            writer.println("M001|TIER_MAINTENANCE|Welcome to TARUMT Resorts!|Dear John, welcome to our loyalty program. Start earning rewards today!");
+            writer.println("M002|TIER_UPGRADE|Congratulations! Platinum Tier Achieved!|Sarah, you've been upgraded to Platinum tier with enhanced benefits!");
+            writer.println("M003|PROMOTIONAL_OFFER|Special Offer: Double Points Weekend!|Ahmed, earn double points on your next weekend stay!");
+            writer.println("M004|TIER_UPGRADE|Diamond Tier Unlocked!|Priya, welcome to Diamond tier. Enjoy exclusive benefits!");
+            writer.println("M005|TIER_UPGRADE|Elite Tier Achieved!|David, you are now an Elite member. Your personal concierge awaits!");
+        } catch (IOException e) {
+            System.err.println("[FileHandler] Error creating default notifications file: " + e.getMessage());
+        }
+    }
+
+    // =========================================================================
+    // 9. LOYALTY - INITIALIZE DATA
+    // =========================================================================
+
+    public static void initializeLoyaltyDataIfEmpty(ListInterface<Member> memberList,
+                                                    QueueInterface<Transaction> transactionQueue,
+                                                    ListInterface<Notification> notificationList) {
+        if (memberList.isEmpty() && transactionQueue.isEmpty() && notificationList.isEmpty()) {
+            ListInterface<Member> defaultMembers = loadMembers();
+            QueueInterface<Transaction> defaultTransactions = loadTransactions();
+            ListInterface<Notification> defaultNotifications = loadNotifications();
+            
+            for (int i = 1; i <= defaultMembers.getNumberOfEntries(); i++) {
+                memberList.add(defaultMembers.getEntry(i));
+            }
+            
+            QueueInterface<Transaction> temp = new LinkedQueue<>();
+            while (!defaultTransactions.isEmpty()) {
+                Transaction t = defaultTransactions.dequeue();
+                transactionQueue.enqueue(t);
+                temp.enqueue(t);
+            }
+            while (!temp.isEmpty()) {
+                defaultTransactions.enqueue(temp.dequeue());
+            }
+            
+            for (int i = 1; i <= defaultNotifications.getNumberOfEntries(); i++) {
+                notificationList.add(defaultNotifications.getEntry(i));
+            }
         }
     }
 }

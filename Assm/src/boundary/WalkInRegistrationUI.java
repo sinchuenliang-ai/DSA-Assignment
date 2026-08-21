@@ -2,6 +2,7 @@ package boundary;
 
 import control.BookingControl;
 import entity.Booking;
+import entity.Member;
 import adt.QueueInterface;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -76,21 +77,59 @@ public class WalkInRegistrationUI {
 
         int guestCount = readIntInput("Number of Guests (1-10)   : ", 1, 10);
 
-        System.out.println("\nSelect Preferred Room Type:");
-        System.out.println("  [1] Standard Single      ($120.00 / night)");
-        System.out.println("  [2] Standard Double      ($150.00 / night)");
-        System.out.println("  [3] Deluxe Suite         ($250.00 / night)");
-        System.out.println("  [4] Executive Suite      ($500.00 / night)");
-        System.out.println("  [5] Presidential Suite   ($1200.00 / night)");
-        int typeChoice = readIntInput("Choice (1-5): ", 1, 5);
+        // Loyalty Linkage
+        control.LoyaltyControl loyaltyControl = bookingControl.getLoyaltyControl();
+        entity.Member member = null;
+        int typeChoice = -1;
+        String roomTypePreference = null;
+        if (loyaltyControl != null) {
+            member = loyaltyControl.findMemberByEmailOrPhone(email, phone);
+            if (member != null) {
+                System.out.println("\n  >>> [ Loyalty Member Recognized! ] <<<");
+                System.out.println("  Member ID     : " + member.getMemberId());
+                System.out.println("  Tier Status   : " + member.getTier() + " Member");
+                System.out.println("  Loyalty Points: " + member.getPoints());
+                if (member.getPreferredRoomType() != null && !member.getPreferredRoomType().trim().isEmpty()) {
+                    System.out.println("  Preferred Room Type: " + member.getPreferredRoomType());
+                    System.out.print("  Would you like to default their selection to " + member.getPreferredRoomType() + "? (Y/N): ");
+                    String usePreferred = scanner.nextLine().trim();
+                    if (usePreferred.equalsIgnoreCase("Y") || usePreferred.equalsIgnoreCase("YES")) {
+                        roomTypePreference = member.getPreferredRoomType();
+                    }
+                }
+            } else {
+                System.out.print("\n  [ Loyalty Program ] This guest is not yet a loyalty member. Sign them up for free? (Y/N): ");
+                String signUpChoice = scanner.nextLine().trim();
+                if (signUpChoice.equalsIgnoreCase("Y") || signUpChoice.equalsIgnoreCase("YES")) {
+                    System.out.print("  Enter Date of Birth (YYYY-MM-DD, optional): ");
+                    String dobStr = scanner.nextLine().trim();
+                    member = loyaltyControl.registerNewMember(name, email, phone, dobStr);
+                    if (member != null) {
+                        System.out.println("  [ SUCCESS ] Loyalty member account created: " + member.getMemberId() + " (" + member.getTier() + " tier).");
+                    } else {
+                        System.out.println("  [ Warning ] Could not auto-register member (Invalid email format/ID). Continuing check-in.");
+                    }
+                }
+            }
+        }
 
-        String roomTypePreference = switch (typeChoice) {
-            case 2 -> "Standard Double";
-            case 3 -> "Deluxe Suite";
-            case 4 -> "Executive Suite";
-            case 5 -> "Presidential Suite";
-            default -> "Standard Single";
-        };
+        if (roomTypePreference == null) {
+            System.out.println("\nSelect Preferred Room Type:");
+            System.out.println("  [1] Standard Single      ($120.00 / night)");
+            System.out.println("  [2] Standard Double      ($150.00 / night)");
+            System.out.println("  [3] Deluxe Suite         ($250.00 / night)");
+            System.out.println("  [4] Executive Suite      ($500.00 / night)");
+            System.out.println("  [5] Presidential Suite   ($1200.00 / night)");
+            typeChoice = readIntInput("Choice (1-5): ", 1, 5);
+
+            roomTypePreference = switch (typeChoice) {
+                case 2 -> "Standard Double";
+                case 3 -> "Deluxe Suite";
+                case 4 -> "Executive Suite";
+                case 5 -> "Presidential Suite";
+                default -> "Standard Single";
+            };
+        }
 
         Booking newBooking = bookingControl.registerWalkInGuest(
                 name, gender, phone, email, icPassport, 

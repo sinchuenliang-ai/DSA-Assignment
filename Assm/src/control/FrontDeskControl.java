@@ -6,6 +6,7 @@ import entity.Booking;
 import entity.HousekeepingTask;
 import entity.Reservation;
 import entity.Room;
+import entity.Member;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
@@ -26,6 +27,7 @@ public class FrontDeskControl {
   private FrontDeskUI frontDeskUI = new FrontDeskUI();
   private BookingControl bookingControl;
   private HouseKeepingControl houseKeepingControl;
+  private LoyaltyControl loyaltyControl;
 
   public FrontDeskControl() {
     this(null, null);
@@ -70,6 +72,14 @@ public class FrontDeskControl {
 
   public BookingControl getBookingControl() {
     return bookingControl;
+  }
+
+  public void setLoyaltyControl(LoyaltyControl loyaltyControl) {
+    this.loyaltyControl = loyaltyControl;
+  }
+
+  public LoyaltyControl getLoyaltyControl() {
+    return loyaltyControl;
   }
 
   public void addPendingWalkInBooking(Booking booking) {
@@ -128,6 +138,22 @@ public class FrontDeskControl {
       }
     }
     return String.valueOf(maxId + 1);
+  }
+
+  public Reservation registerGuestAndAssignConfirmation(String guestName, String roomCategory, String roomNumber, int stayDays, double totalBill, String status) {
+    String confirmationNumber = generate8DigitConfirmationNumber();
+    Reservation newReservation = new Reservation(
+        confirmationNumber,
+        guestName,
+        roomCategory,
+        roomNumber,
+        stayDays,
+        totalBill,
+        status
+    );
+    reservationTree.add(newReservation);
+    FileHandler.saveReservations(reservationTree);
+    return newReservation;
   }
 
   public void runFrontDeskService() {
@@ -345,6 +371,18 @@ public class FrontDeskControl {
       bookingControl.markBookingConfirmed(booking);
     }
 
+    // Loyalty Linkage - Reward points for stay
+    int pointsEarned = 0;
+    Member loyaltyMember = null;
+    if (loyaltyControl != null && booking.getGuest() != null) {
+      String email = booking.getGuest().getEmail();
+      String phone = booking.getGuest().getPhoneNumber();
+      loyaltyMember = loyaltyControl.findMemberByEmailOrPhone(email, phone);
+      if (loyaltyMember != null) {
+        pointsEarned = loyaltyControl.rewardPointsForStay(loyaltyMember, totalBill, booking.getBookingID());
+      }
+    }
+
     System.out.println("\n+=======================================================================+");
     System.out.println("|             WALK-IN CONFIRMATION ASSIGNED SUCCESSFULLY                |");
     System.out.println("+=======================================================================+");
@@ -355,6 +393,10 @@ public class FrontDeskControl {
     System.out.printf("|  %-22s : %-44s |\n", "Assigned Room", roomNo + " (" + (booking.getRoom() != null ? booking.getRoom().getRoomType() : category) + ")");
     System.out.printf("|  %-22s : %-44s |\n", "Stay Duration", days + " Night(s) (" + booking.getCheckInDate() + " to " + booking.getCheckOutDate() + ")");
     System.out.printf("|  %-22s : $%-43.2f |\n", "Total Bill Amount", totalBill);
+    if (loyaltyMember != null) {
+      System.out.printf("|  %-22s : %-44s |\n", "Loyalty Member", loyaltyMember.getMemberId() + " (" + loyaltyMember.getTier() + " Tier)");
+      System.out.printf("|  %-22s : %-44s |\n", "Points Earned", "+" + pointsEarned + " (New Bal: " + loyaltyMember.getPoints() + ")");
+    }
     System.out.printf("|  %-22s : %-44s |\n", "Front Desk Status", "Checked-In (Active Reservation)");
     System.out.println("+=======================================================================+");
     System.out.println("  Reservation has been added to Front Desk BST and saved to disk.");
@@ -495,7 +537,10 @@ public class FrontDeskControl {
     return dailyRate * days;
   }
 
-  public void updateReservationStatus() {
+public void updateReservationStatus() {
+    System.out.println("\n-----------------------------------------");
+    System.out.println("         UPDATE GUEST DETAILS");
+    System.out.println("-----------------------------------------");
     String confirmNo = frontDeskUI.inputConfirmationNumber();
     Reservation res = reservationTree.search(new Reservation(confirmNo));
     
@@ -505,50 +550,80 @@ public class FrontDeskControl {
     }
 
     int choice;
+    boolean isUpdated = false;
+
     do {
       frontDeskUI.printReservationDetails(res);
       choice = frontDeskUI.getUpdateMenuChoice();
       
       switch (choice) {
-        case 1 -> res.setGuestName(frontDeskUI.inputGuestName());
+        case 1 -> {
+          res.setGuestName(frontDeskUI.inputGuestName());
+          isUpdated = true;
+          System.out.println("  [ System ] Guest name updated successfully.");
+        }
         case 2 -> {
           String newCategory = frontDeskUI.inputRoomCategory();
           res.setRoomCategory(newCategory);
           res.setTotalBillAmount(calculateTotalBill(newCategory, res.getStayDurationDays()));
-          System.out.println("Room category updated. New bill auto-calculated.");
+          isUpdated = true;
+          System.out.println("  [ System ] Room category updated to " + newCategory + ". Bill auto-recalculated.");
         }
-        case 3 -> res.setRoomNumber(frontDeskUI.inputRoomNumber());
+        case 3 -> {
+          res.setRoomNumber(frontDeskUI.inputRoomNumber());
+          isUpdated = true;
+          System.out.println("  [ System ] Room number updated successfully.");
+        }
         case 4 -> {
           LocalDate checkIn = frontDeskUI.inputCheckInDate();
           LocalDate checkOut = frontDeskUI.inputCheckOutDate(checkIn);
           int newDays = frontDeskUI.calculateStayDuration(checkIn, checkOut);
-          res.setStayDurationDays(newDays);
-          res.setTotalBillAmount(calculateTotalBill(res.getRoomCategory(), newDays));
-          System.out.println("Stay dates & duration updated to " + newDays + " day(s) (" + checkIn + " to " + checkOut + "). New bill auto-calculated.");
+          
+          if (newDays <= 0) {
+              System.out.println("  [!] Update failed: Stay duration must be at least 1 day.");
+          } else {
+              res.setStayDurationDays(newDays);
+              res.setTotalBillAmount(calculateTotalBill(res.getRoomCategory(), newDays));
+              isUpdated = true;
+              System.out.println("  [ System ] Dates updated. Duration is now " + newDays + " day(s). Bill auto-recalculated.");
+          }
         }
         case 5 -> {
           String newStatus = frontDeskUI.inputStatus();
           String oldStatus = res.getStatus();
-          res.setStatus(newStatus);
+          
+          if (newStatus.equalsIgnoreCase(oldStatus)) {
+            System.out.println("  [ System ] Status is already set to " + oldStatus + ".");
+          } else {
+            res.setStatus(newStatus);
+            isUpdated = true;
+            System.out.println("  [ System ] Status updated from " + oldStatus + " to " + newStatus + ".");
 
-          boolean isCheckOut = newStatus.equalsIgnoreCase("Checked-Out") || newStatus.equalsIgnoreCase("Cleaning");
-          boolean wasAlreadyCleaning = oldStatus.equalsIgnoreCase("Cleaning");
-          String roomNo = res.getRoomNumber();
+            boolean isCheckOut = newStatus.equalsIgnoreCase("Checked-Out") || newStatus.equalsIgnoreCase("Cleaning");
+            boolean wasAlreadyCleaning = oldStatus.equalsIgnoreCase("Cleaning");
+            String roomNo = res.getRoomNumber();
 
-          if (isCheckOut && !wasAlreadyCleaning && roomNo != null && !roomNo.trim().isEmpty() && !roomNo.equalsIgnoreCase("Pending")) {
-            if (houseKeepingControl != null) {
-              houseKeepingControl.createTaskForRoom(roomNo, "Room Cleaning", "S001");
-              System.out.println("  [ System ] Housekeeping task auto-created for room " + roomNo + " (Status: Dirty).");
+            // Trigger Housekeeping if room needs cleaning
+            if (isCheckOut && !wasAlreadyCleaning && roomNo != null && !roomNo.trim().isEmpty() && !roomNo.equalsIgnoreCase("PENDING")) {
+              if (houseKeepingControl != null) {
+                houseKeepingControl.createTaskForRoom(roomNo, "Room Cleaning", "S001");
+                System.out.println("  [ System ] Housekeeping task auto-created for room " + roomNo + " (Status: Dirty).");
+              }
             }
           }
         }
-        case 0 -> System.out.println("Finished updating reservation.");
+        case 0 -> {
+          if (isUpdated) {
+             System.out.println("Saving updates...");
+             FileHandler.saveReservations(reservationTree);
+             MessageUI.displayUpdatedMessage();
+          } else {
+             System.out.println("No changes were made. Exiting update menu.");
+          }
+        }
         default -> MessageUI.displayInvalidChoiceMessage();
       }
     } while (choice != 0);
-
-    FileHandler.saveReservations(reservationTree);
-    MessageUI.displayUpdatedMessage();
   }
 
   // =========================================================================

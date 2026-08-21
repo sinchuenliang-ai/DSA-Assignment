@@ -175,19 +175,45 @@ public class FrontDeskUI {
     return scanner.nextLine().trim();
   }
 
-  public String inputGuestName() {
-    System.out.print("Enter guest name: ");
-    return scanner.nextLine().trim();
+public String inputGuestName() {
+    String name;
+    while (true) {
+      System.out.print("Enter guest name: ");
+      name = scanner.nextLine().trim();
+      // Validation: Not empty and contains only letters and spaces
+      if (!name.isEmpty() && name.matches("^[a-zA-Z\\s]+$")) {
+        return name;
+      }
+      System.out.println("  [!] Invalid name. Please use only letters and spaces, and do not leave it blank.");
+    }
   }
 
-  public String inputRoomCategory() {
-    System.out.print("Enter room category (Standard/Deluxe/Suite/Presidential): ");
-    return scanner.nextLine().trim();
+public String inputRoomCategory() {
+    String[] validCategories = {"Standard", "Deluxe", "Suite", "Presidential"};
+    while (true) {
+      System.out.print("Enter room category (Standard/Deluxe/Suite/Presidential): ");
+      String input = scanner.nextLine().trim();
+      
+      for (String category : validCategories) {
+        if (category.equalsIgnoreCase(input)) {
+          // Return the properly capitalized version
+          return category; 
+        }
+      }
+      System.out.println("  [!] Invalid category. Please enter one of the options provided.");
+    }
   }
 
-  public String inputRoomNumber() {
-    System.out.print("Enter room number (leave blank if not yet assigned): ");
-    return scanner.nextLine().trim();
+public String inputRoomNumber() {
+    while (true) {
+      System.out.print("Enter room number (e.g., 101, 205A) or type 'Pending': ");
+      String input = scanner.nextLine().trim();
+      // Validation: Not empty and alphanumeric (no special characters)
+      if (!input.isEmpty() && input.matches("^[a-zA-Z0-9]+$")) {
+        return input.toUpperCase();
+      }
+      System.out.println("  [!] Invalid room number. Please use only letters and numbers (no spaces or symbols).");
+    }
   }
 
   public LocalDate inputCheckInDate() {
@@ -256,9 +282,19 @@ public class FrontDeskUI {
     return bill;
   }
 
-  public String inputStatus() {
-    System.out.print("Enter new status (Checked-In/Reserved/Checked-Out/Cleaning/Maintenance, leave blank to keep current): ");
-    return scanner.nextLine().trim();
+public String inputStatus() {
+    String[] validStatuses = {"Checked-In", "Reserved", "Checked-Out", "Cleaning", "Maintenance"};
+    while (true) {
+      System.out.print("Enter new status (Checked-In/Reserved/Checked-Out/Cleaning/Maintenance): ");
+      String input = scanner.nextLine().trim();
+      
+      for (String status : validStatuses) {
+        if (status.equalsIgnoreCase(input)) {
+          return status;
+        }
+      }
+      System.out.println("  [!] Invalid status. Please enter one of the exact statuses listed.");
+    }
   }
 
   public String inputStatusFilter() {
