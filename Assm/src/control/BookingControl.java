@@ -431,7 +431,6 @@ public class BookingControl {
 
         adt.TreeInterface<entity.Reservation> resTree = new adt.BinarySearchTreeADT<>();
         utility.FileHandler.loadReservations(resTree);
-        boolean isToday = checkIn.equals(LocalDate.now());
 
         int count = 0;
         for (Room room : allRooms) {
@@ -440,7 +439,8 @@ public class BookingControl {
 
             boolean isAvailable = true;
 
-            if (isToday && activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
+            // Check Housekeeping Status — always reflects current cleanliness state
+            if (activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
                 entity.HousekeepingTask t = activeTasks.get(room.getRoomNumber().toUpperCase());
                 if (t != null && !t.getStatus().equalsIgnoreCase("Ready for Check-In")) {
                     isAvailable = false;
@@ -509,7 +509,6 @@ public class BookingControl {
         }
         adt.TreeInterface<entity.Reservation> resTree = new adt.BinarySearchTreeADT<>();
         utility.FileHandler.loadReservations(resTree);
-        boolean isToday = checkIn.equals(LocalDate.now());
 
         // Find first available room of this type for the requested dates
         Room chosenRoom = null;
@@ -518,7 +517,8 @@ public class BookingControl {
 
             boolean isAvailable = true;
 
-            if (isToday && activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
+            // Check Housekeeping Status — always reflects current cleanliness state
+            if (activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
                 entity.HousekeepingTask t = activeTasks.get(room.getRoomNumber().toUpperCase());
                 if (t != null && !t.getStatus().equalsIgnoreCase("Ready for Check-In")) {
                     isAvailable = false;
@@ -619,19 +619,19 @@ public class BookingControl {
         adt.TreeInterface<entity.Reservation> resTree = new adt.BinarySearchTreeADT<>();
         utility.FileHandler.loadReservations(resTree);
 
-        boolean isToday = checkIn.equals(LocalDate.now());
         int availableCount = 0;
         
         for (Room room : allRooms) {
             boolean isAvailable = true;
             
-            // 2. Check Housekeeping Status (only blocks immediate walk-ins for today)
-            if (isToday && activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
+            // 2. Check Housekeeping Status — always reflects current cleanliness state
+            if (activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
                 entity.HousekeepingTask t = activeTasks.get(room.getRoomNumber().toUpperCase());
                 if (t != null && !t.getStatus().equalsIgnoreCase("Ready for Check-In")) {
                     isAvailable = false;
                 }
             }
+
             
             // 3. Check FrontDesk Reservations (Checked-In guests)
             if (isAvailable) {
