@@ -13,6 +13,8 @@ public class Reservation implements Comparable<Reservation>, Serializable {
   private int stayDurationDays;
   private double totalBillAmount;
   private String status;
+  private String checkInDate;
+  private String checkOutDate;
 
   public Reservation() {
   }
@@ -23,6 +25,12 @@ public class Reservation implements Comparable<Reservation>, Serializable {
 
   public Reservation(String confirmationNumber, String guestName, String roomCategory,
           String roomNumber, int stayDurationDays, double totalBillAmount, String status) {
+    this(confirmationNumber, guestName, roomCategory, roomNumber, stayDurationDays, totalBillAmount, status, null, null);
+  }
+
+  public Reservation(String confirmationNumber, String guestName, String roomCategory,
+          String roomNumber, int stayDurationDays, double totalBillAmount, String status,
+          String checkInDate, String checkOutDate) {
     this.confirmationNumber = confirmationNumber;
     this.guestName = guestName;
     this.roomCategory = roomCategory;
@@ -30,6 +38,8 @@ public class Reservation implements Comparable<Reservation>, Serializable {
     this.stayDurationDays = stayDurationDays;
     this.totalBillAmount = totalBillAmount;
     this.status = status;
+    this.checkInDate = checkInDate;
+    this.checkOutDate = checkOutDate;
   }
 
   public String getConfirmationNumber() {
@@ -88,6 +98,22 @@ public class Reservation implements Comparable<Reservation>, Serializable {
     this.status = status;
   }
 
+  public String getCheckInDate() {
+    return checkInDate;
+  }
+
+  public void setCheckInDate(String checkInDate) {
+    this.checkInDate = checkInDate;
+  }
+
+  public String getCheckOutDate() {
+    return checkOutDate;
+  }
+
+  public void setCheckOutDate(String checkOutDate) {
+    this.checkOutDate = checkOutDate;
+  }
+
   @Override
   public int compareTo(Reservation other) {
     return this.confirmationNumber.compareTo(other.getConfirmationNumber());
@@ -117,7 +143,10 @@ public class Reservation implements Comparable<Reservation>, Serializable {
 
   @Override
   public String toString() {
-    return String.format("%-12s %-18s %-12s %-8s %5d   $%10.2f %-12s",
-            confirmationNumber, guestName, roomCategory, roomNumber, stayDurationDays, totalBillAmount, status);
+    return String.format("%-12s %-18s %-16s %-8s %-11s %-11s %5d   $%10.2f %-12s",
+            confirmationNumber, guestName, roomCategory, roomNumber,
+            (checkInDate != null && !checkInDate.isEmpty() ? checkInDate : "-"),
+            (checkOutDate != null && !checkOutDate.isEmpty() ? checkOutDate : "-"),
+            stayDurationDays, totalBillAmount, status);
   }
 }

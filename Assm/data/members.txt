@@ -5,3 +5,5 @@ M004|Priya Patel|priya.p@email.com|015-234-5678|Diamond|18000|18000|18000|0|0|19
 M005|David Tan|david.t@email.com|016-789-0123|Elite|35000|35000|35000|0|0|1975-07-08|Presidential Suite
 M009|Clement|clcemnt@gmail.com|0198766787|Gold|1000|1000|1000|0|0||
 M010|Naim|naim@gmail.com|0190098789|Silver|0|0|0|0|0|2026-08-21|
+M011|Lipguan|lipguanisniga@gmail.com|0108974510|Silver|0|0|0|0|0||
+M012|Obee|eee@gmail.con|019122141412|Platinum|12000|12000|12000|0|0||

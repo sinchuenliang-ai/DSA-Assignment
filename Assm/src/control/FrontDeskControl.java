@@ -9,6 +9,7 @@ import entity.Room;
 import entity.Member;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -116,10 +117,11 @@ public class FrontDeskControl {
   public double getRoomRate(String category) {
     if (category == null) return 120.00;
     return switch (category.toLowerCase()) {
-      case "standard", "standard single", "standard double" -> 120.00;
-      case "deluxe", "deluxe suite" -> 250.00;
-      case "suite", "executive suite", "executive" -> 500.00;
-      case "presidential", "presidential suite" -> 1200.00;
+      case "standard single", "standard"          -> 120.00;
+      case "standard double"                       -> 150.00;
+      case "deluxe suite", "deluxe"               -> 250.00;
+      case "executive suite", "suite", "executive" -> 500.00;
+      case "presidential suite", "presidential"   -> 1200.00;
       default -> 120.00;
     };
   }
@@ -141,6 +143,11 @@ public class FrontDeskControl {
   }
 
   public Reservation registerGuestAndAssignConfirmation(String guestName, String roomCategory, String roomNumber, int stayDays, double totalBill, String status) {
+    LocalDate today = LocalDate.now();
+    return registerGuestAndAssignConfirmation(guestName, roomCategory, roomNumber, stayDays, totalBill, status, today.toString(), today.plusDays(stayDays).toString());
+  }
+
+  public Reservation registerGuestAndAssignConfirmation(String guestName, String roomCategory, String roomNumber, int stayDays, double totalBill, String status, String checkInDate, String checkOutDate) {
     String confirmationNumber = generate8DigitConfirmationNumber();
     Reservation newReservation = new Reservation(
         confirmationNumber,
@@ -149,7 +156,9 @@ public class FrontDeskControl {
         roomNumber,
         stayDays,
         totalBill,
-        status
+        status,
+        checkInDate,
+        checkOutDate
     );
     reservationTree.add(newReservation);
     FileHandler.saveReservations(reservationTree);
@@ -167,7 +176,7 @@ public class FrontDeskControl {
         case 3 -> assignWalkInConfirmation();
         case 4 -> updateReservationStatus();
         case 5 -> deleteReservation();
-        case 6 -> generateCustomReport();
+        case 6 -> generateReportsMenu();
         default -> MessageUI.displayInvalidChoiceMessage();
       }
     } while (choice != 0);
@@ -215,30 +224,58 @@ public class FrontDeskControl {
       return;
     }
 
-    // 3. Prompt for payment settlement and check-out
+    // 3. Prompt to proceed with payment
     boolean confirm = frontDeskUI.readConfirmationInput("Proceed to process payment and check-out guest '" + target.getGuestName() + "'? (Y/N): ");
 
-    if (confirm) {
-      target.setStatus("Checked-Out");
-      String roomNo = target.getRoomNumber();
+    if (!confirm) {
+      System.out.println("\n  [ System ] Check-out cancelled. Guest remains Checked-In.");
+      return;
+    }
 
-      if (roomNo != null && !roomNo.trim().isEmpty() && !roomNo.equalsIgnoreCase("Pending")) {
-        if (houseKeepingControl != null) {
-          houseKeepingControl.createTaskForRoom(roomNo, "Room Cleaning", "S001");
-          System.out.println("  [ System ] Housekeeping task auto-created for Room " + roomNo + " (Status set to Dirty).");
+    // 4. Process payment via chosen method
+    String paymentMethod = null;
+    while (paymentMethod == null) {
+      paymentMethod = frontDeskUI.processPayment(target.getTotalBillAmount());
+      if (paymentMethod == null) {
+        boolean retry = frontDeskUI.readConfirmationInput("  Payment cancelled. Cancel check-out entirely? (Y/N): ");
+        if (retry) {
+          System.out.println("\n  [ System ] Check-out cancelled. Guest remains Checked-In.");
+          return;
         }
       }
-
-      FileHandler.saveReservations(reservationTree);
-      
-      System.out.println("\n===================================================");
-      System.out.println("  [ SUCCESS ] Payment processed successfully!");
-      System.out.println("  Guest status updated to Checked-Out.");
-      System.out.println("===================================================\n");
-    } else {
-      System.out.println("\n  [ System ] Check-out cancelled. Guest remains Checked-In.");
     }
+
+    // 5. Update status to Checked-Out
+    target.setStatus("Checked-Out");
+    String roomNo = target.getRoomNumber();
+
+    if (roomNo != null && !roomNo.trim().isEmpty() && !roomNo.equalsIgnoreCase("Pending")) {
+      if (houseKeepingControl != null) {
+        houseKeepingControl.createTaskForRoom(roomNo, "Room Cleaning", "S001");
+        System.out.println("  [ System ] Housekeeping task auto-created for Room " + roomNo + " (Status set to Dirty).");
+      }
+    }
+
+    FileHandler.saveReservations(reservationTree);
+
+    // 6. Award loyalty points for stay (if member found by guest name)
+    if (loyaltyControl != null) {
+      Member loyaltyMember = loyaltyControl.findMemberByName(target.getGuestName());
+      if (loyaltyMember != null) {
+        int pts = loyaltyControl.rewardPointsForStay(loyaltyMember, target.getTotalBillAmount(), confirmNo);
+        System.out.println("  [ Loyalty ] Points awarded to " + loyaltyMember.getName()
+            + ": +" + pts + " pts (Tier: " + loyaltyMember.getTier() + ")");
+      } else {
+        System.out.println("  [ Loyalty ] Guest is not a loyalty member. No points awarded.");
+      }
+    }
+
+    System.out.println("\n===================================================");
+    System.out.printf(  "  [ SUCCESS ] Payment via %s%n", paymentMethod);
+    System.out.println("  Guest status updated to Checked-Out.");
+    System.out.println("===================================================\n");
   }
+
 
   public void deleteReservation() {
     String confirmNo = frontDeskUI.inputConfirmationNumber();
@@ -362,7 +399,14 @@ public class FrontDeskControl {
                   : getRoomRate(category);
     double totalBill = rate * days;
 
-    Reservation newRes = new Reservation(confirmNo, guestName, category, roomNo, days, totalBill, "Checked-In");
+    String inDateStr = (booking.getCheckInDate() != null && !booking.getCheckInDate().isEmpty())
+        ? booking.getCheckInDate()
+        : LocalDate.now().toString();
+    String outDateStr = (booking.getCheckOutDate() != null && !booking.getCheckOutDate().isEmpty())
+        ? booking.getCheckOutDate()
+        : LocalDate.now().plusDays(days).toString();
+
+    Reservation newRes = new Reservation(confirmNo, guestName, category, roomNo, days, totalBill, "Checked-In", inDateStr, outDateStr);
     reservationTree.add(newRes);
     FileHandler.saveReservations(reservationTree);
 
@@ -448,10 +492,21 @@ public class FrontDeskControl {
       while (it.hasNext()) {
         Reservation r = it.next();
         if (rNo.equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
-          LocalDate today = LocalDate.now();
-          LocalDate resOut = today.plusDays(r.getStayDurationDays());
-          
-          boolean overlaps = !(resOut.isBefore(startDate) || today.isAfter(endDate));
+          LocalDate resIn = null;
+          LocalDate resOut = null;
+          try {
+            if (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty()) {
+              resIn = LocalDate.parse(r.getCheckInDate());
+            }
+            if (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty()) {
+              resOut = LocalDate.parse(r.getCheckOutDate());
+            }
+          } catch (Exception ignored) {}
+
+          if (resIn == null) resIn = LocalDate.now();
+          if (resOut == null) resOut = resIn.plusDays(r.getStayDurationDays());
+
+          boolean overlaps = !(resOut.isBefore(startDate) || resIn.isAfter(endDate));
           if (overlaps) {
             matchingRes = r;
             break;
@@ -468,10 +523,9 @@ public class FrontDeskControl {
       if (matchingRes != null) {
         confNo = matchingRes.getConfirmationNumber();
         guestName = matchingRes.getGuestName();
-        LocalDate today = LocalDate.now();
-        inStr = today.toString();
-        outStr = today.plusDays(matchingRes.getStayDurationDays()).toString();
-        rawStatus = "Checked-In";
+        inStr = matchingRes.getCheckInDate() != null ? matchingRes.getCheckInDate() : "-";
+        outStr = matchingRes.getCheckOutDate() != null ? matchingRes.getCheckOutDate() : "-";
+        rawStatus = matchingRes.getStatus() != null ? matchingRes.getStatus() : "Checked-In";
       } else {
         Map<String, HousekeepingTask> hkTaskMap = houseKeepingControl != null
             ? houseKeepingControl.getAllActiveTasksMap()
@@ -563,18 +617,42 @@ public void updateReservationStatus() {
           System.out.println("  [ System ] Guest name updated successfully.");
         }
         case 2 -> {
-          String newCategory = frontDeskUI.inputRoomCategory();
+          // Step 1: Pick category
+          String newCategory = frontDeskUI.selectRoomCategory();
+
+          // Step 2: Build set of occupied rooms (skip current reservation's room)
+          java.util.Set<String> occupied = new java.util.HashSet<>();
+          Iterator<Reservation> it = reservationTree.getInorderIterator();
+          while (it.hasNext()) {
+            Reservation r = it.next();
+            // A room is occupied if Checked-In or Reserved (excluding current reservation)
+            String rStatus = r.getStatus();
+            boolean isActive = "Checked-In".equalsIgnoreCase(rStatus)
+                || "Reserved".equalsIgnoreCase(rStatus);
+            boolean isCurrentRes = r.getConfirmationNumber().equals(res.getConfirmationNumber());
+            if (isActive && !isCurrentRes && r.getRoomNumber() != null
+                && !r.getRoomNumber().equalsIgnoreCase("Pending")
+                && !r.getRoomNumber().equalsIgnoreCase("0")) {
+              occupied.add(r.getRoomNumber().toUpperCase());
+            }
+          }
+
+          // Step 3: Pick room number for that category
+          String newRoom = frontDeskUI.selectRoomNumber(newCategory, occupied);
+          if (newRoom == null) {
+            System.out.println("  [ System ] Room update cancelled — no available rooms.");
+            break;
+          }
+
           res.setRoomCategory(newCategory);
+          res.setRoomNumber(newRoom);
           res.setTotalBillAmount(calculateTotalBill(newCategory, res.getStayDurationDays()));
           isUpdated = true;
-          System.out.println("  [ System ] Room category updated to " + newCategory + ". Bill auto-recalculated.");
+          System.out.println("  [ System ] Room updated to " + newRoom + " (" + newCategory
+              + "). Bill auto-recalculated: RM "
+              + String.format("%.2f", res.getTotalBillAmount()));
         }
         case 3 -> {
-          res.setRoomNumber(frontDeskUI.inputRoomNumber());
-          isUpdated = true;
-          System.out.println("  [ System ] Room number updated successfully.");
-        }
-        case 4 -> {
           LocalDate checkIn = frontDeskUI.inputCheckInDate();
           LocalDate checkOut = frontDeskUI.inputCheckOutDate(checkIn);
           int newDays = frontDeskUI.calculateStayDuration(checkIn, checkOut);
@@ -582,34 +660,12 @@ public void updateReservationStatus() {
           if (newDays <= 0) {
               System.out.println("  [!] Update failed: Stay duration must be at least 1 day.");
           } else {
+              res.setCheckInDate(checkIn.toString());
+              res.setCheckOutDate(checkOut.toString());
               res.setStayDurationDays(newDays);
               res.setTotalBillAmount(calculateTotalBill(res.getRoomCategory(), newDays));
               isUpdated = true;
-              System.out.println("  [ System ] Dates updated. Duration is now " + newDays + " day(s). Bill auto-recalculated.");
-          }
-        }
-        case 5 -> {
-          String newStatus = frontDeskUI.inputStatus();
-          String oldStatus = res.getStatus();
-          
-          if (newStatus.equalsIgnoreCase(oldStatus)) {
-            System.out.println("  [ System ] Status is already set to " + oldStatus + ".");
-          } else {
-            res.setStatus(newStatus);
-            isUpdated = true;
-            System.out.println("  [ System ] Status updated from " + oldStatus + " to " + newStatus + ".");
-
-            boolean isCheckOut = newStatus.equalsIgnoreCase("Checked-Out") || newStatus.equalsIgnoreCase("Cleaning");
-            boolean wasAlreadyCleaning = oldStatus.equalsIgnoreCase("Cleaning");
-            String roomNo = res.getRoomNumber();
-
-            // Trigger Housekeeping if room needs cleaning
-            if (isCheckOut && !wasAlreadyCleaning && roomNo != null && !roomNo.trim().isEmpty() && !roomNo.equalsIgnoreCase("PENDING")) {
-              if (houseKeepingControl != null) {
-                houseKeepingControl.createTaskForRoom(roomNo, "Room Cleaning", "S001");
-                System.out.println("  [ System ] Housekeeping task auto-created for room " + roomNo + " (Status: Dirty).");
-              }
-            }
+              System.out.println("  [ System ] Dates updated (" + checkIn + " to " + checkOut + "). Duration is now " + newDays + " day(s). Bill auto-recalculated.");
           }
         }
         case 0 -> {
@@ -626,21 +682,46 @@ public void updateReservationStatus() {
     } while (choice != 0);
   }
 
+
   // =========================================================================
-  // CUSTOM REPORT
+  // REPORTS & ANALYTICS MODULE
   // =========================================================================
 
-  public void generateCustomReport() {
+  public void generateReportsMenu() {
+    int choice;
+    do {
+      choice = frontDeskUI.getReportMainMenuChoice();
+      switch (choice) {
+        case 0 -> {
+          return;
+        }
+        case 1 -> generateOperationalReport();
+        case 2 -> generateBusinessCycleAnalyticsReport();
+        default -> MessageUI.displayInvalidChoiceMessage();
+      }
+    } while (choice != 0);
+  }
+
+  // =========================================================================
+  // REPORT 1: OPERATIONAL RESERVATION & OCCUPANCY REPORT (SEARCH & MULTI-FILTER)
+  // =========================================================================
+
+  public void generateOperationalReport() {
     String categoryFilter = "";
     String statusFilter = "";
     boolean useMinBill = false;
     double minBill = 0.0;
     boolean useMinDays = false;
     int minDays = 0;
+    String searchKeyword = "";
+    int sortChoice = 1; // 1: Conf # Asc
 
     int choice;
     do {
-      choice = frontDeskUI.getReportFilterChoice(categoryFilter, statusFilter, useMinBill, minBill, useMinDays, minDays);
+      String sortLabel = getReport1SortLabel(sortChoice);
+      choice = frontDeskUI.getReportFilterChoice(
+          categoryFilter, statusFilter, useMinBill, minBill, useMinDays, minDays, searchKeyword, sortLabel);
+
       switch (choice) {
         case 0 -> {
           return;
@@ -655,49 +736,425 @@ public void updateReservationStatus() {
           minDays = frontDeskUI.inputMinDays();
           useMinDays = true;
         }
-        case 5 -> {
-          printReport(categoryFilter, statusFilter, useMinBill, minBill, useMinDays, minDays);
+        case 5 -> searchKeyword = frontDeskUI.inputSearchKeyword();
+        case 6 -> sortChoice = frontDeskUI.getReport1SortChoice();
+        case 7 -> {
+          printOperationalReport(categoryFilter, statusFilter, useMinBill, minBill, useMinDays, minDays, searchKeyword, sortChoice);
           return;
+        }
+        case 8 -> {
+          categoryFilter = "";
+          statusFilter = "";
+          useMinBill = false;
+          minBill = 0.0;
+          useMinDays = false;
+          minDays = 0;
+          searchKeyword = "";
+          sortChoice = 1;
+          System.out.println("  [✔] All filters reset to default (Show All).");
         }
         default -> MessageUI.displayInvalidChoiceMessage();
       }
     } while (true);
   }
 
-  private void printReport(String categoryFilter, String statusFilter,
-          boolean useMinBill, double minBill, boolean useMinDays, int minDays) {
+  private String getReport1SortLabel(int choice) {
+    return switch (choice) {
+      case 1 -> "Confirmation Number (Ascending)";
+      case 2 -> "Confirmation Number (Descending)";
+      case 3 -> "Guest Name (A to Z)";
+      case 4 -> "Stay Duration (Longest to Shortest)";
+      case 5 -> "Total Bill (Highest to Lowest)";
+      case 6 -> "Total Bill (Lowest to Highest)";
+      default -> "Confirmation Number (Ascending)";
+    };
+  }
 
-    StringBuilder header = new StringBuilder("Category: ").append(categoryFilter.isEmpty() ? "ALL" : categoryFilter)
-            .append(" | Status: ").append(statusFilter.isEmpty() ? "ALL" : statusFilter)
-            .append(" | Min Bill: ").append(useMinBill ? "$" + String.format("%.2f", minBill) : "None")
-            .append(" | Min Stay: ").append(useMinDays ? minDays + " days" : "None");
+  private void printOperationalReport(String categoryFilter, String statusFilter,
+          boolean useMinBill, double minBill, boolean useMinDays, int minDays, String searchKeyword, int sortChoice) {
 
-    StringBuilder sb = new StringBuilder();
-    sb.append("\n=========================================================================================\n");
-    sb.append("          FRONT DESK REPORT\n");
-    sb.append("          ").append(header).append("\n");
-    sb.append("=========================================================================================\n");
-
+    // 1. Search & Filter from BST
+    List<Reservation> filteredList = new ArrayList<>();
     Iterator<Reservation> it = reservationTree.getInorderIterator();
-    int count = 0;
-    double totalRevenue = 0;
+
+    int countCheckedIn = 0;
+    int countReserved = 0;
+    int countCheckedOut = 0;
+    int countOthers = 0;
+    double totalRevenue = 0.0;
+    int totalStayDays = 0;
 
     while (it.hasNext()) {
       Reservation r = it.next();
-      boolean matchCategory = categoryFilter.isEmpty() || r.getRoomCategory().equalsIgnoreCase(categoryFilter);
+
+      // Filter: Category
+      boolean matchCategory = categoryFilter.isEmpty() 
+          || r.getRoomCategory().equalsIgnoreCase(categoryFilter)
+          || (categoryFilter.equalsIgnoreCase("Standard") && r.getRoomCategory().toLowerCase().contains("standard"))
+          || (categoryFilter.equalsIgnoreCase("Deluxe") && r.getRoomCategory().toLowerCase().contains("deluxe"))
+          || (categoryFilter.equalsIgnoreCase("Suite") && r.getRoomCategory().toLowerCase().contains("suite"));
+
+      // Filter: Status
       boolean matchStatus = statusFilter.isEmpty() || r.getStatus().equalsIgnoreCase(statusFilter);
+
+      // Filter: Min Bill & Min Days
       boolean matchMinBill = !useMinBill || r.getTotalBillAmount() >= minBill;
       boolean matchMinDays = !useMinDays || r.getStayDurationDays() >= minDays;
 
-      if (matchCategory && matchStatus && matchMinBill && matchMinDays) {
-        sb.append(r.toString()).append("\n");
-        count++;
+      // Filter: Keyword Search in Guest Name (Linear Search technique)
+      boolean matchSearch = searchKeyword.isEmpty() 
+          || (r.getGuestName() != null && r.getGuestName().toLowerCase().contains(searchKeyword.toLowerCase()))
+          || (r.getConfirmationNumber() != null && r.getConfirmationNumber().contains(searchKeyword));
+
+      if (matchCategory && matchStatus && matchMinBill && matchMinDays && matchSearch) {
+        filteredList.add(r);
         totalRevenue += r.getTotalBillAmount();
+        totalStayDays += r.getStayDurationDays();
+
+        String s = r.getStatus().toUpperCase();
+        if (s.contains("CHECKED-IN")) countCheckedIn++;
+        else if (s.contains("RESERVED")) countReserved++;
+        else if (s.contains("CHECKED-OUT")) countCheckedOut++;
+        else countOthers++;
       }
     }
-    sb.append("-----------------------------------------------------------------------------------------\n");
-    sb.append(String.format(" Total Records Displayed: %d | Total Revenue: $%.2f\n", count, totalRevenue));
-    sb.append("=========================================================================================\n");
+
+    // 2. Apply Custom Sorting Algorithm (Insertion Sort)
+    sortReservations(filteredList, sortChoice);
+
+    // 3. Render Formatted Output
+    StringBuilder sb = new StringBuilder();
+    sb.append("\n=========================================================================================================================\n");
+    sb.append("                                   TARUMT RESORTS - FRONT DESK OPERATIONAL REPORT                                        \n");
+    sb.append("=========================================================================================================================\n");
+    sb.append(String.format(" Generated On: %-25s | Category: %-15s | Status: %-15s\n",
+        LocalDate.now().toString(),
+        categoryFilter.isEmpty() ? "ALL" : categoryFilter,
+        statusFilter.isEmpty() ? "ALL" : statusFilter));
+    sb.append(String.format(" Search Term : %-25s | Min Bill: %-15s | Min Stay: %-15s\n",
+        searchKeyword.isEmpty() ? "None" : "'" + searchKeyword + "'",
+        useMinBill ? "RM " + String.format("%.2f", minBill) : "None",
+        useMinDays ? minDays + " Day(s)" : "None"));
+    sb.append(String.format(" Sort Order  : %s\n", getReport1SortLabel(sortChoice)));
+    sb.append("=========================================================================================================================\n");
+    sb.append(String.format("%-12s %-18s %-18s %-9s %-12s %-12s %-6s %-14s %-12s\n",
+        "Conf. #", "Guest Name", "Room Category", "Room No", "Check-In", "Check-Out", "Nights", "Total Bill", "Status"));
+    sb.append("-------------------------------------------------------------------------------------------------------------------------\n");
+
+    if (filteredList.isEmpty()) {
+      sb.append("                              [ NOTICE ] No reservation records matched the specified filter criteria.                   \n");
+    } else {
+      for (Reservation r : filteredList) {
+        String inDate = (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty()) ? r.getCheckInDate() : "-";
+        String outDate = (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty()) ? r.getCheckOutDate() : "-";
+        sb.append(String.format("%-12s %-18s %-18s %-9s %-12s %-12s %5d   RM %10.2f  %-12s\n",
+            r.getConfirmationNumber(),
+            r.getGuestName(),
+            r.getRoomCategory(),
+            r.getRoomNumber() != null ? r.getRoomNumber() : "-",
+            inDate,
+            outDate,
+            r.getStayDurationDays(),
+            r.getTotalBillAmount(),
+            r.getStatus()
+        ));
+      }
+    }
+
+    sb.append("=========================================================================================================================\n");
+    sb.append("                                            OPERATIONAL METRICS & SUMMARY                                                \n");
+    sb.append("-------------------------------------------------------------------------------------------------------------------------\n");
+    double avgBill = filteredList.isEmpty() ? 0.0 : totalRevenue / filteredList.size();
+    double avgStay = filteredList.isEmpty() ? 0.0 : (double) totalStayDays / filteredList.size();
+
+    sb.append(String.format(" Total Records Displayed : %-10d | Total Filtered Revenue : RM %12.2f\n", filteredList.size(), totalRevenue));
+    sb.append(String.format(" Average Bill / Guest    : RM %-7.2f | Average Stay Duration  : %.1f Night(s)\n", avgBill, avgStay));
+    sb.append("-------------------------------------------------------------------------------------------------------------------------\n");
+    sb.append(String.format(" Status Breakdown        : Checked-In: %d | Reserved: %d | Checked-Out: %d | Maintenance/Other: %d\n",
+        countCheckedIn, countReserved, countCheckedOut, countOthers));
+    sb.append("=========================================================================================================================\n");
+
     System.out.println(sb.toString());
+  }
+
+  /**
+   * Custom Insertion Sort algorithm demonstration on List of Reservations.
+   */
+  private void sortReservations(List<Reservation> list, int sortChoice) {
+    for (int i = 1; i < list.size(); i++) {
+      Reservation current = list.get(i);
+      int j = i - 1;
+      while (j >= 0 && compareReservations(list.get(j), current, sortChoice) > 0) {
+        list.set(j + 1, list.get(j));
+        j--;
+      }
+      list.set(j + 1, current);
+    }
+  }
+
+  private int compareReservations(Reservation a, Reservation b, int sortChoice) {
+    return switch (sortChoice) {
+      case 1 -> a.getConfirmationNumber().compareToIgnoreCase(b.getConfirmationNumber());
+      case 2 -> b.getConfirmationNumber().compareToIgnoreCase(a.getConfirmationNumber());
+      case 3 -> a.getGuestName().compareToIgnoreCase(b.getGuestName());
+      case 4 -> Integer.compare(b.getStayDurationDays(), a.getStayDurationDays());
+      case 5 -> Double.compare(b.getTotalBillAmount(), a.getTotalBillAmount());
+      case 6 -> Double.compare(a.getTotalBillAmount(), b.getTotalBillAmount());
+      default -> a.getConfirmationNumber().compareToIgnoreCase(b.getConfirmationNumber());
+    };
+  }
+
+  // =========================================================================
+  // REPORT 2: BUSINESS CYCLE REVENUE & ROOM CATEGORY PERFORMANCE ANALYTICS
+  // =========================================================================
+
+  private static class CategoryPerformanceMetric {
+    String categoryName;
+    int reservationsCount;
+    int roomNightsSold;
+    double totalRevenue;
+    double adr; // Average Daily Rate
+    double revenueShare;
+    double avgStayLength;
+
+    public CategoryPerformanceMetric(String categoryName) {
+      this.categoryName = categoryName;
+      this.reservationsCount = 0;
+      this.roomNightsSold = 0;
+      this.totalRevenue = 0.0;
+      this.adr = 0.0;
+      this.revenueShare = 0.0;
+      this.avgStayLength = 0.0;
+    }
+  }
+
+  public void generateBusinessCycleAnalyticsReport() {
+    LocalDate startDate = null;
+    LocalDate endDate = null;
+    String categoryFilter = "";
+    double minRevenue = 0.0;
+    int sortMetric = 1; // 1: Total Revenue Descending
+
+    int choice;
+    do {
+      String metricLabel = getBusinessCycleSortLabel(sortMetric);
+      choice = frontDeskUI.getBusinessCycleReportChoice(startDate, endDate, categoryFilter, minRevenue, metricLabel);
+
+      switch (choice) {
+        case 0 -> {
+          return;
+        }
+        case 1 -> {
+          startDate = frontDeskUI.inputReportDate("  Enter Business Cycle Start Date (YYYY-MM-DD) [or press ENTER for none]: ");
+          if (startDate != null) {
+            endDate = frontDeskUI.inputReportDate("  Enter Business Cycle End Date (YYYY-MM-DD) [or press ENTER for none]: ");
+            if (endDate != null && endDate.isBefore(startDate)) {
+              System.out.println("  [!] End date cannot be before start date. Dates reset.");
+              startDate = null;
+              endDate = null;
+            }
+          }
+        }
+        case 2 -> categoryFilter = frontDeskUI.inputCategoryFilter();
+        case 3 -> minRevenue = frontDeskUI.inputMinBill();
+        case 4 -> sortMetric = frontDeskUI.getBusinessCycleSortChoice();
+        case 5 -> {
+          printBusinessCycleReport(startDate, endDate, categoryFilter, minRevenue, sortMetric);
+          return;
+        }
+        case 6 -> {
+          startDate = null;
+          endDate = null;
+          categoryFilter = "";
+          minRevenue = 0.0;
+          sortMetric = 1;
+          System.out.println("  [✔] Business cycle analytics parameters reset.");
+        }
+        default -> MessageUI.displayInvalidChoiceMessage();
+      }
+    } while (true);
+  }
+
+  private String getBusinessCycleSortLabel(int choice) {
+    return switch (choice) {
+      case 1 -> "Total Revenue (Highest to Lowest)";
+      case 2 -> "Room Nights Sold (Highest to Lowest)";
+      case 3 -> "Booking Volume (Highest to Lowest)";
+      case 4 -> "Average Daily Rate / ADR (Highest to Lowest)";
+      default -> "Total Revenue (Highest to Lowest)";
+    };
+  }
+
+  private void printBusinessCycleReport(LocalDate startDate, LocalDate endDate, String categoryFilter, double minRevenue, int sortMetric) {
+    // 1. Initialize category map with standard master categories
+    Map<String, CategoryPerformanceMetric> metricMap = new HashMap<>();
+    String[] masterCategories = {
+        "Standard Single", "Standard Double", "Deluxe Suite", "Executive Suite", "Presidential Suite"
+    };
+    for (String cat : masterCategories) {
+      metricMap.put(cat.toLowerCase(), new CategoryPerformanceMetric(cat));
+    }
+
+    // 2. Search & Aggregate data from reservationTree
+    Iterator<Reservation> it = reservationTree.getInorderIterator();
+    double hotelGrossRevenue = 0.0;
+    int hotelTotalNights = 0;
+    int hotelTotalBookings = 0;
+
+    while (it.hasNext()) {
+      Reservation r = it.next();
+
+      // Check Business Cycle Date Range Overlap
+      if (startDate != null && endDate != null) {
+        LocalDate rIn = null;
+        LocalDate rOut = null;
+        try {
+          if (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty()) {
+            rIn = LocalDate.parse(r.getCheckInDate());
+          }
+          if (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty()) {
+            rOut = LocalDate.parse(r.getCheckOutDate());
+          }
+        } catch (Exception ignored) {}
+
+        if (rIn == null) rIn = LocalDate.now();
+        if (rOut == null) rOut = rIn.plusDays(r.getStayDurationDays());
+
+        boolean overlaps = !(rOut.isBefore(startDate) || rIn.isAfter(endDate));
+        if (!overlaps) continue;
+      }
+
+      // Check Category Filter
+      String rawCat = r.getRoomCategory() != null ? r.getRoomCategory() : "Standard Single";
+      if (!categoryFilter.isEmpty()) {
+        boolean match = rawCat.equalsIgnoreCase(categoryFilter)
+            || (categoryFilter.equalsIgnoreCase("Standard") && rawCat.toLowerCase().contains("standard"))
+            || (categoryFilter.equalsIgnoreCase("Deluxe") && rawCat.toLowerCase().contains("deluxe"))
+            || (categoryFilter.equalsIgnoreCase("Suite") && rawCat.toLowerCase().contains("suite"));
+        if (!match) continue;
+      }
+
+      // Map to category metric
+      String key = rawCat.toLowerCase();
+      if (!metricMap.containsKey(key)) {
+        // Fallback for legacy categories
+        if (key.contains("presidential")) key = "presidential suite";
+        else if (key.contains("executive") || key.equals("suite")) key = "executive suite";
+        else if (key.contains("deluxe")) key = "deluxe suite";
+        else if (key.contains("double")) key = "standard double";
+        else key = "standard single";
+      }
+
+      CategoryPerformanceMetric metric = metricMap.get(key);
+      metric.reservationsCount++;
+      metric.roomNightsSold += r.getStayDurationDays();
+      metric.totalRevenue += r.getTotalBillAmount();
+
+      hotelGrossRevenue += r.getTotalBillAmount();
+      hotelTotalNights += r.getStayDurationDays();
+      hotelTotalBookings++;
+    }
+
+    // 3. Compute KPI ratios and prepare list
+    List<CategoryPerformanceMetric> results = new ArrayList<>();
+    for (CategoryPerformanceMetric m : metricMap.values()) {
+      if (m.totalRevenue >= minRevenue && (categoryFilter.isEmpty() || m.reservationsCount > 0)) {
+        m.adr = m.roomNightsSold > 0 ? m.totalRevenue / m.roomNightsSold : 0.0;
+        m.revenueShare = hotelGrossRevenue > 0 ? (m.totalRevenue / hotelGrossRevenue) * 100.0 : 0.0;
+        m.avgStayLength = m.reservationsCount > 0 ? (double) m.roomNightsSold / m.reservationsCount : 0.0;
+        results.add(m);
+      }
+    }
+
+    // 4. Sort results using custom sorting algorithm
+    sortCategoryMetrics(results, sortMetric);
+
+    // 5. Render Structured Management Report
+    StringBuilder sb = new StringBuilder();
+    sb.append("\n===================================================================================================================\n");
+    sb.append("                           TARUMT RESORTS - BUSINESS CYCLE REVENUE & PERFORMANCE REPORT                            \n");
+    sb.append("===================================================================================================================\n");
+    String periodStr = (startDate != null && endDate != null) ? startDate + " to " + endDate : "ALL HISTORICAL CYCLES";
+    sb.append(String.format(" Business Cycle Period : %-30s | Generated On    : %s\n", periodStr, LocalDate.now().toString()));
+    sb.append(String.format(" Category Scope        : %-30s | Sort Metric     : %s\n",
+        categoryFilter.isEmpty() ? "ALL ROOM CATEGORIES" : categoryFilter, getBusinessCycleSortLabel(sortMetric)));
+    sb.append("===================================================================================================================\n");
+    sb.append(String.format("%-24s %-15s %-15s %-18s %-16s %-14s %-12s\n",
+        "Room Category", "Reservations", "Nights Sold", "Total Revenue", "ADR (RM/Night)", "Rev. Share", "Avg. Stay"));
+    sb.append("-------------------------------------------------------------------------------------------------------------------\n");
+
+    CategoryPerformanceMetric topRevenueCat = null;
+    CategoryPerformanceMetric topVolumeCat = null;
+
+    for (CategoryPerformanceMetric m : results) {
+      if (topRevenueCat == null || m.totalRevenue > topRevenueCat.totalRevenue) topRevenueCat = m;
+      if (topVolumeCat == null || m.reservationsCount > topVolumeCat.reservationsCount) topVolumeCat = m;
+
+      sb.append(String.format("%-24s %-15d %-15d RM %13.2f   RM %11.2f     %6.1f %%     %4.1f Days\n",
+          m.categoryName,
+          m.reservationsCount,
+          m.roomNightsSold,
+          m.totalRevenue,
+          m.adr,
+          m.revenueShare,
+          m.avgStayLength
+      ));
+    }
+
+    double overallHotelADR = hotelTotalNights > 0 ? hotelGrossRevenue / hotelTotalNights : 0.0;
+    double overallAvgStay = hotelTotalBookings > 0 ? (double) hotelTotalNights / hotelTotalBookings : 0.0;
+
+    sb.append("===================================================================================================================\n");
+    sb.append("                                        EXECUTIVE FINANCIAL & OPERATIONAL KPIS                                     \n");
+    sb.append("-------------------------------------------------------------------------------------------------------------------\n");
+    sb.append(String.format(" Gross Business Cycle Revenue : RM %-15.2f | Total Room Nights Sold       : %d\n", hotelGrossRevenue, hotelTotalNights));
+    sb.append(String.format(" Total Cycle Reservations     : %-18d | Overall Hotel ADR (Daily Rate): RM %.2f\n", hotelTotalBookings, overallHotelADR));
+    sb.append(String.format(" Overall Average Stay Length  : %-18.1f | Total Categories Analyzed     : %d\n", overallAvgStay, results.size()));
+    sb.append("-------------------------------------------------------------------------------------------------------------------\n");
+    if (topRevenueCat != null && topRevenueCat.totalRevenue > 0) {
+      sb.append(String.format(" Top Revenue Generating Category: %s (RM %.2f - %.1f%% of Total)\n",
+          topRevenueCat.categoryName, topRevenueCat.totalRevenue, topRevenueCat.revenueShare));
+    }
+    if (topVolumeCat != null && topVolumeCat.reservationsCount > 0) {
+      sb.append(String.format(" Most Popular Category by Volume: %s (%d Reservations, %d Nights Sold)\n",
+          topVolumeCat.categoryName, topVolumeCat.reservationsCount, topVolumeCat.roomNightsSold));
+    }
+    sb.append("===================================================================================================================\n");
+    sb.append("                                   MANAGEMENT INSIGHTS & STRATEGIC RECOMMENDATIONS                                 \n");
+    sb.append("-------------------------------------------------------------------------------------------------------------------\n");
+    if (topRevenueCat != null && topRevenueCat.categoryName.contains("Suite")) {
+      sb.append(" * Suite categories are driving the majority of resort revenue. Consider offering weekend premium package upgrades.\n");
+    } else {
+      sb.append(" * Standard room categories represent steady base volume. Explore seasonal promotions to boost suite occupancy.\n");
+    }
+    sb.append(" * Utilize ADR trends to dynamically adjust weekend vs. weekday pricing for high-demand business cycles.\n");
+    sb.append("===================================================================================================================\n");
+
+    System.out.println(sb.toString());
+  }
+
+  /**
+   * Custom Insertion Sort algorithm demonstration for Category Performance Metrics.
+   */
+  private void sortCategoryMetrics(List<CategoryPerformanceMetric> list, int sortMetric) {
+    for (int i = 1; i < list.size(); i++) {
+      CategoryPerformanceMetric current = list.get(i);
+      int j = i - 1;
+      while (j >= 0 && compareCategoryMetrics(list.get(j), current, sortMetric) > 0) {
+        list.set(j + 1, list.get(j));
+        j--;
+      }
+      list.set(j + 1, current);
+    }
+  }
+
+  private int compareCategoryMetrics(CategoryPerformanceMetric a, CategoryPerformanceMetric b, int sortMetric) {
+    return switch (sortMetric) {
+      case 1 -> Double.compare(b.totalRevenue, a.totalRevenue); // Descending
+      case 2 -> Integer.compare(b.roomNightsSold, a.roomNightsSold); // Descending
+      case 3 -> Integer.compare(b.reservationsCount, a.reservationsCount); // Descending
+      case 4 -> Double.compare(b.adr, a.adr); // Descending
+      default -> Double.compare(b.totalRevenue, a.totalRevenue);
+    };
   }
 }

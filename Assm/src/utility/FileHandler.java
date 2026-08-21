@@ -73,8 +73,14 @@ public class FileHandler {
                     int stayDays = Integer.parseInt(parts[4].trim());
                     double totalBill = Double.parseDouble(parts[5].trim());
                     String status = parts[6].trim();
+                    String checkInDate = (parts.length >= 8 && !parts[7].trim().isEmpty()) 
+                        ? parts[7].trim() 
+                        : java.time.LocalDate.now().toString();
+                    String checkOutDate = (parts.length >= 9 && !parts[8].trim().isEmpty()) 
+                        ? parts[8].trim() 
+                        : java.time.LocalDate.now().plusDays(stayDays).toString();
 
-                    Reservation res = new Reservation(confirmNo, guestName, roomCategory, roomNo, stayDays, totalBill, status);
+                    Reservation res = new Reservation(confirmNo, guestName, roomCategory, roomNo, stayDays, totalBill, status, checkInDate, checkOutDate);
                     reservationTree.add(res);
                 }
             }
@@ -88,14 +94,16 @@ public class FileHandler {
             Iterator<Reservation> it = reservationTree.getInorderIterator();
             while (it.hasNext()) {
                 Reservation r = it.next();
-                writer.println(String.format("%s|%s|%s|%s|%d|%.2f|%s",
+                writer.println(String.format("%s|%s|%s|%s|%d|%.2f|%s|%s|%s",
                         r.getConfirmationNumber(),
                         r.getGuestName(),
                         r.getRoomCategory(),
                         r.getRoomNumber() != null ? r.getRoomNumber() : "",
                         r.getStayDurationDays(),
                         r.getTotalBillAmount(),
-                        r.getStatus()
+                        r.getStatus(),
+                        r.getCheckInDate() != null ? r.getCheckInDate() : "",
+                        r.getCheckOutDate() != null ? r.getCheckOutDate() : ""
                 ));
             }
         } catch (IOException e) {

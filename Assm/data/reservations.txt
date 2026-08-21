@@ -1,13 +1,15 @@
-10008801|Tan Ah Kow|Deluxe|D-101|3|450.00|Checked-In
-10008802|Alex Muthu|Standard|A-005|1|120.00|Checked-Out
-10008804|Alice Smith|Suite|S-201|2|1100.00|Checked-In
-10008805|Siti Nurhaliza|Suite|S-202|5|2500.00|Reserved
-10008809|John Doe|Presidential|P-501|7|8400.00|Checked-In
-10008810|Michael Chen|Standard|A-002|2|240.00|Checked-In
-10008811|Sarah Lim|Standard|A-003|4|480.00|Checked-Out
-10008812|David Wong|Deluxe|D-105|0|0.00|Maintenance
-10008813|Emma Brown|Suite|S-205|0|0.00|Cleaning
-10008814|Ahmad Ali|Deluxe|D-103|2|300.00|Checked-In
-10008815|Alice Tan|Standard|A-002|3|360.00|Checked-In
-10008816|Alice Tan|Standard|A-002|4|480.00|Checked-In
-10008817|Charlie Hitler|Deluxe|D-102|3|750.00|Checked-In
+10008801|Tan Ah Kow|Deluxe|D-101|3|450.00|Checked-In|2026-08-22|2026-08-25
+10008802|Alex Muthu|Standard|A-005|1|120.00|Checked-Out|2026-08-22|2026-08-23
+10008804|Alice Smith|Suite|S-201|2|1100.00|Checked-In|2026-08-22|2026-08-24
+10008805|Siti Nurhaliza|Suite|S-202|5|2500.00|Checked-Out|2026-08-22|2026-08-27
+10008809|John Doe|Presidential|P-501|7|8400.00|Checked-Out|2026-08-22|2026-08-29
+10008810|Michael Chen|Standard|A-002|2|240.00|Checked-Out|2026-08-22|2026-08-24
+10008811|Sarah Lim|Standard|A-003|4|480.00|Checked-Out|2026-08-22|2026-08-26
+10008812|David Wong|Deluxe|D-105|0|0.00|Maintenance|2026-08-22|2026-08-22
+10008813|Lemma Green|Standard Single|A-001|9|1080.00|Checked-Out|2026-08-22|2026-08-31
+10008814|Ahmad Ali|Deluxe|D-103|2|300.00|Checked-In|2026-08-22|2026-08-24
+10008815|Alice Tan|Standard|A-002|3|360.00|Checked-In|2026-08-22|2026-08-25
+10008816|Alice Tan|Standard|A-002|4|480.00|Checked-In|2026-08-22|2026-08-26
+10008817|Charlie Hitler|Deluxe|D-102|3|750.00|Checked-Out|2026-08-22|2026-08-25
+10008818|Obee|Presidential|P-502|1|1200.00|Checked-In|2026-08-22|2026-08-23
+10008819|Henry Tan|Deluxe|D-101|1|250.00|Checked-In|2026-08-21|2026-08-23

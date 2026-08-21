@@ -4,3 +4,4 @@ M003|EARN_POINTS|250|Stay at Standard Room - 2 nights|B003
 M004|EARN_POINTS|18000|Stay at Executive Suite - 7 nights|B004
 M005|EARN_POINTS|35000|Stay at Presidential Suite - 10 nights|B005
 M009|EARN_POINTS|1000|Earned from RM 100.00 spending|
+M012|EARN_POINTS|12000|Earned from RM 1200.00 spending|

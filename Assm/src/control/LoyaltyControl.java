@@ -428,6 +428,23 @@ public class LoyaltyControl {
         return null;
     }
 
+    /**
+     * Finds a loyalty member by name (case-insensitive, partial match).
+     * Used by check-out flow which only has guest name available.
+     */
+    public Member findMemberByName(String name) {
+        if (memberList == null || name == null || name.trim().isEmpty()) return null;
+        String nameLower = name.trim().toLowerCase();
+        for (int i = 1; i <= memberList.getNumberOfEntries(); i++) {
+            Member m = memberList.getEntry(i);
+            if (m.getName() != null && m.getName().toLowerCase().contains(nameLower)) {
+                return m;
+            }
+        }
+        return null;
+    }
+
+
     public int rewardPointsForStay(Member member, double amountSpent, String bookingId) {
         if (member == null || pointsService == null) return 0;
         int points = pointsService.earnPoints(member, amountSpent, bookingId);

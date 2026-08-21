@@ -1,5 +1,7 @@
 B1006|2026-08-21|2026-08-21|2026-08-22|1|Waiting|Standard Single|G106|Naim|Female|0190098789|naim@gmail.com|090988981231|null
 B1002|2026-08-20|2026-08-21|2026-08-22|1|Waiting|Standard Double|G102|Bob Lee|Male|013-9876543|bob@gmail.com|IC880202|null
-B1005|2026-08-21|2026-08-21|2026-08-23|1|Waiting|Deluxe Suite|G105|Henry Tan|Male|016-1234567|henry@test.com|IC901010|null
+B1008|2026-08-22|2026-09-01|2026-09-02|1|Waiting|Deluxe Suite|G108|Lionel Messi|Male|019-8889999|messi@intermiami.com|IC870624|null
+B1009|2026-08-22|2026-09-01|2026-09-02|1|Waiting|Presidential Suite|G109|Lionel Messi|Male|019-8889999|messi@intermiami.com|IC870624|null
 B1004|2026-08-21|2026-08-21|2026-08-24|2|Assigned - Pending Front Desk Confirmation|Standard Single|G104|David Beckham|Male|012-7778899|david@beckham.com|IC750502|A-001
-B1003|2026-08-20|2026-08-20|2026-08-23|3|Confirmed (Conf: 10008817)|Deluxe Suite|G103|Charlie Wong|Male|014-1122334|charlie@gmail.com|IC990303|D-102
+B1007|2026-08-21|2026-08-21|2026-08-22|1|Assigned - Pending Front Desk Confirmation|Presidential Suite|G107|Lipguan|Male|0108974510|lipguanisniga@gmail.com|092144141242|P-501
+B1005|2026-08-21|2026-08-21|2026-08-23|1|Assigned - Pending Front Desk Confirmation|Deluxe Suite|G105|Henry Tan|Male|016-1234567|henry@test.com|IC901010|D-101

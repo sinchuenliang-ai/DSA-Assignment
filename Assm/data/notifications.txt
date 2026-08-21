@@ -5,3 +5,5 @@ M004|TIER_UPGRADE|Diamond Tier Unlocked!|Priya, welcome to Diamond tier. Enjoy e
 M005|TIER_UPGRADE|Elite Tier Achieved!|David, you are now an Elite member. Your personal concierge awaits!
 M009|POINTS_EARNED|1000 Points Earned!|You earned 1000 points. Balance: 1000
 M009|TIER_UPGRADE|Tier Upgrade! Gold Level Achieved!|Congratulations! You've been upgraded to Gold tier!
+M012|POINTS_EARNED|12000 Points Earned!|You earned 12000 points. Balance: 12000
+M012|TIER_UPGRADE|Tier Upgrade! Platinum Level Achieved!|Congratulations! You've been upgraded to Platinum tier!
