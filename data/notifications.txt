@@ -1,7 +1,0 @@
-M001|TIER_MAINTENANCE|Welcome to TARUMT Resorts!|Dear John, welcome to our loyalty program. Start earning rewards today!
-M002|TIER_UPGRADE|Congratulations! Platinum Tier Achieved!|Sarah, you've been upgraded to Platinum tier with enhanced benefits!
-M003|PROMOTIONAL_OFFER|Special Offer: Double Points Weekend!|Ahmed, earn double points on your next weekend stay!
-M004|TIER_UPGRADE|Diamond Tier Unlocked!|Priya, welcome to Diamond tier. Enjoy exclusive benefits!
-M005|TIER_UPGRADE|Elite Tier Achieved!|David, you are now an Elite member. Your personal concierge awaits!
-M009|POINTS_EARNED|1000 Points Earned!|You earned 1000 points. Balance: 1000
-M009|TIER_UPGRADE|Tier Upgrade! Gold Level Achieved!|Congratulations! You've been upgraded to Gold tier!
