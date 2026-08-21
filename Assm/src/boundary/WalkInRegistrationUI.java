@@ -40,10 +40,12 @@ public class WalkInRegistrationUI {
             System.out.println("|  [3] Cancel Waiting Booking                              |");
             System.out.println("|  [4] View & Search Booking Records                       |");
             System.out.println("|  [5] Display Real-Time System Status                     |");
+            System.out.println("|  [6] Booking Analytics Report                            |");
+            System.out.println("|  [7] Room Type Demand Report                             |");
             System.out.println("|  [0] Exit Module                                         |");
             System.out.println("+==========================================================+");
 
-            choice = readIntInput("Select an option (0-5): ", 0, 5);
+            choice = readIntInput("Select an option (0-7): ", 0, 7);
             System.out.println();
 
             switch (choice) {
@@ -52,6 +54,8 @@ public class WalkInRegistrationUI {
                 case 3 -> handleCancelBooking();
                 case 4 -> handleViewAndSearchBookings();
                 case 5 -> displayQueueStatus();
+                case 6 -> handleBookingAnalyticsReport();
+                case 7 -> handleRoomTypeDemandReport();
                 case 0 -> System.out.println("Returning to System Master Menu...");
                 default -> System.out.println("  [!] Invalid choice. Please try again.");
             }
@@ -66,15 +70,30 @@ public class WalkInRegistrationUI {
     private void handleRegisterWalkIn() {
         printHeader("1. REGISTER WALK-IN GUEST");
 
+        LocalDate checkInDate = readValidCheckInDate("Check-In Date (YYYY-MM-DD)");
+        LocalDate checkOutDate = readValidCheckOutDate("Check-Out Date (YYYY-MM-DD)", checkInDate);
+
+        boolean hasRooms = bookingControl.displayAvailableRoomsForStay(checkInDate, checkOutDate);
+        
+        if (!hasRooms) {
+            System.out.println("  [!] No rooms available for the selected dates.");
+            return;
+        }
+
+        System.out.print("\n  Proceed with booking for these dates? (Y/N): ");
+        String proceed = scanner.nextLine().trim();
+        if (!proceed.equalsIgnoreCase("Y") && !proceed.equalsIgnoreCase("YES")) {
+            System.out.println("  [ Cancelled ] Returning to main menu.");
+            return;
+        }
+
+        System.out.println("\n  --- Please enter guest details ---");
         String name = readNameInput("Guest Full Name           : ");
         String gender = readGenderInput("Gender (M/F)               : ");
         String phone = readPhoneInput("Contact Phone Number      : ");
         String email = readEmailInput("Email Address             : ");
         String icPassport = readIcPassportInput("IC / Passport Number      : ");
-
-        LocalDate checkInDate = readValidCheckInDate("Check-In Date (YYYY-MM-DD)");
-        LocalDate checkOutDate = readValidCheckOutDate("Check-Out Date (YYYY-MM-DD)", checkInDate);
-
+        
         int guestCount = readIntInput("Number of Guests (1-10)   : ", 1, 10);
 
         // Loyalty Linkage
@@ -154,31 +173,24 @@ public class WalkInRegistrationUI {
             return;
         }
 
-        int singleAvail = bookingControl.getAvailableRoomCountByType("Standard Single");
-        int singleWait  = bookingControl.getWaitingCountByType("Standard Single");
-
-        int doubleAvail = bookingControl.getAvailableRoomCountByType("Standard Double");
-        int doubleWait  = bookingControl.getWaitingCountByType("Standard Double");
-
-        int deluxeAvail = bookingControl.getAvailableRoomCountByType("Deluxe Suite");
-        int deluxeWait  = bookingControl.getWaitingCountByType("Deluxe Suite");
-
-        int execAvail   = bookingControl.getAvailableRoomCountByType("Executive Suite");
-        int execWait    = bookingControl.getWaitingCountByType("Executive Suite");
-
-        int presAvail   = bookingControl.getAvailableRoomCountByType("Presidential Suite");
-        int presWait    = bookingControl.getWaitingCountByType("Presidential Suite");
-
         System.out.println("  Select Room Type Queue to Process:");
         System.out.println("  -----------------------------------------------------------------------------");
-        System.out.printf("  %-8s %-22s | %-16s | %-14s\n", "Option", "Room Type", "Available Rooms", "Waiting Guests");
+        System.out.printf("  %-8s %-22s | %-16s | %-14s\n", "Option", "Room Type", "Waiting Guests", "Next Guest Stay");
         System.out.println("  -----------------------------------------------------------------------------");
-        System.out.printf("  [1]      %-22s | %-16d | %-14d\n", "Standard Single", singleAvail, singleWait);
-        System.out.printf("  [2]      %-22s | %-16d | %-14d\n", "Standard Double", doubleAvail, doubleWait);
-        System.out.printf("  [3]      %-22s | %-16d | %-14d\n", "Deluxe Suite",    deluxeAvail, deluxeWait);
-        System.out.printf("  [4]      %-22s | %-16d | %-14d\n", "Executive Suite",   execAvail,   execWait);
-        System.out.printf("  [5]      %-22s | %-16d | %-14d\n", "Presidential Suite", presAvail,  presWait);
-        System.out.printf("  [0]      %-22s | %-16s | %-14s\n", "Cancel / Return",   "-",         "-");
+
+        String[] types = {"Standard Single", "Standard Double", "Deluxe Suite", "Executive Suite", "Presidential Suite"};
+        for (int i = 0; i < types.length; i++) {
+            int waitCount = bookingControl.getWaitingCountByType(types[i]);
+            String nextStay = "-";
+            if (waitCount > 0) {
+                Booking next = bookingControl.peekNextInQueue(types[i]);
+                if (next != null) {
+                    nextStay = next.getCheckInDate() + " to " + next.getCheckOutDate();
+                }
+            }
+            System.out.printf("  [%d]      %-22s | %-16d | %-14s\n", i + 1, types[i], waitCount, nextStay);
+        }
+        System.out.printf("  [0]      %-22s | %-16s | %-14s\n", "Cancel / Return", "-", "-");
         System.out.println("  -----------------------------------------------------------------------------");
 
         int typeChoice = readIntInput("Choice (0-5): ", 0, 5);
@@ -201,24 +213,50 @@ public class WalkInRegistrationUI {
             return;
         }
 
-        if (bookingControl.getAvailableRoomCountByType(selectedType) == 0) {
-            System.out.println("\n  [ WARNING ] No " + selectedType + " rooms are available to assign right now.");
+        // Peek at the next guest's dates to do a date-aware availability check
+        Booking nextGuest = bookingControl.peekNextInQueue(selectedType);
+        if (nextGuest == null) {
+            System.out.println("\n  [ ERROR ] Could not read next guest's booking details.");
             return;
         }
 
-        Booking assigned = bookingControl.assignRoomByRoomType(selectedType);
+        LocalDate checkIn;
+        LocalDate checkOut;
+        try {
+            checkIn = LocalDate.parse(nextGuest.getCheckInDate());
+            checkOut = LocalDate.parse(nextGuest.getCheckOutDate());
+        } catch (Exception e) {
+            System.out.println("\n  [ ERROR ] Invalid dates on booking " + nextGuest.getBookingID() + ". Cannot assign room.");
+            return;
+        }
+
+        System.out.println("\n  Next Guest: " + nextGuest.getGuest().getGuestName() 
+                + "  |  Stay: " + checkIn + " to " + checkOut);
+
+        // Show only rooms available for the guest's actual stay dates
+        boolean hasRoom = bookingControl.displayAvailableRoomsForType(selectedType, checkIn, checkOut);
+
+        if (!hasRoom) {
+            System.out.println("\n  [ WARNING ] No " + selectedType + " rooms are available for "
+                    + checkIn + " to " + checkOut + ". Cannot assign room.");
+            return;
+        }
+
+        Booking assigned = bookingControl.assignRoomByRoomTypeAndDates(selectedType, checkIn, checkOut);
 
         if (assigned != null) {
             System.out.println("\n  [ SUCCESS ] Room Assigned Successfully!");
             System.out.println("   Booking ID    : " + assigned.getBookingID());
             System.out.println("   Guest Name    : " + assigned.getGuest().getGuestName());
-            System.out.println("   Room Assigned : " + assigned.getRoom().getRoomNumber() 
+            System.out.println("   Room Assigned : " + assigned.getRoom().getRoomNumber()
                                + " (" + assigned.getRoom().getRoomType() + ")");
+            System.out.println("   Stay Dates    : " + checkIn + " to " + checkOut);
             System.out.println("   * Status      : Transferred to Front Desk for Confirmation Number Assignment.");
         } else {
             System.out.println("\n  [ ERROR ] Room assignment failed.");
         }
     }
+
 
     private void handleCancelBooking() {
         printHeader("3. CANCEL WAITING BOOKING");
@@ -356,6 +394,79 @@ public class WalkInRegistrationUI {
         System.out.println("   Pending Front Desk Conf.    : " + bookingControl.getPendingConfirmationsCount());
         System.out.println("   Total Available Rooms       : " + bookingControl.getAvailableRoomsCount());
         System.out.println("   Confirmed Bookings          : " + bookingControl.getConfirmedCount());
+    }
+
+    private void handleBookingAnalyticsReport() {
+        printHeader("6. BOOKING ANALYTICS REPORT");
+        System.out.println("  Enter the date range for the report (YYYY-MM-DD):");
+        
+        LocalDate defaultStart = LocalDate.now().minusMonths(1);
+        System.out.print("  Start Date [Press ENTER for '" + defaultStart + "']: ");
+        String startStr = scanner.nextLine().trim();
+        if (startStr.isEmpty()) startStr = defaultStart.toString();
+        
+        LocalDate defaultEnd = LocalDate.now();
+        System.out.print("  End Date   [Press ENTER for '" + defaultEnd + "']: ");
+        String endStr = scanner.nextLine().trim();
+        if (endStr.isEmpty()) endStr = defaultEnd.toString();
+
+        System.out.println("  Select Room Type to Filter (or [0] for ALL):");
+        System.out.println("  [1] Standard Single");
+        System.out.println("  [2] Standard Double");
+        System.out.println("  [3] Deluxe Suite");
+        System.out.println("  [4] Executive Suite");
+        System.out.println("  [5] Presidential Suite");
+        System.out.println("  [0] ALL Room Types");
+        
+        int typeChoice = readIntInput("  Choice (0-5): ", 0, 5);
+        String roomFilter = switch (typeChoice) {
+            case 1 -> "Standard Single";
+            case 2 -> "Standard Double";
+            case 3 -> "Deluxe Suite";
+            case 4 -> "Executive Suite";
+            case 5 -> "Presidential Suite";
+            default -> "ALL";
+        };
+        
+        bookingControl.generateBookingAnalyticsReport(startStr, endStr, roomFilter);
+    }
+
+    private void handleRoomTypeDemandReport() {
+        printHeader("7. ROOM TYPE DEMAND REPORT");
+        System.out.println("  Select Room Type to Filter (or [0] for ALL):");
+        System.out.println("  [1] Standard Single");
+        System.out.println("  [2] Standard Double");
+        System.out.println("  [3] Deluxe Suite");
+        System.out.println("  [4] Executive Suite");
+        System.out.println("  [5] Presidential Suite");
+        System.out.println("  [0] ALL Room Types");
+        
+        int typeChoice = readIntInput("  Choice (0-5): ", 0, 5);
+        String roomFilter = switch (typeChoice) {
+            case 1 -> "Standard Single";
+            case 2 -> "Standard Double";
+            case 3 -> "Deluxe Suite";
+            case 4 -> "Executive Suite";
+            case 5 -> "Presidential Suite";
+            default -> "ALL";
+        };
+        
+        System.out.println("\n  Select Booking Status to Filter (or [0] for ALL):");
+        System.out.println("  [1] Waiting");
+        System.out.println("  [2] Assigned");
+        System.out.println("  [3] Confirmed");
+        System.out.println("  [0] ALL Status");
+        int statusChoice = readIntInput("  Choice (0-3): ", 0, 3);
+        String statusFilter = switch (statusChoice) {
+            case 1 -> "Waiting";
+            case 2 -> "Assigned";
+            case 3 -> "Confirmed";
+            default -> "ALL";
+        };
+
+        int minGuests = readIntInput("\n  Enter Minimum Number of Guests (1-10): ", 1, 10);
+
+        bookingControl.generateRoomTypeDemandReport(roomFilter, statusFilter, minGuests);
     }
 
     private int readIntInput(String prompt, int min, int max) {
