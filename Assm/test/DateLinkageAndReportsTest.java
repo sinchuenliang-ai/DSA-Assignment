@@ -20,12 +20,12 @@ public class DateLinkageAndReportsTest {
         String checkOut = "2026-09-02";
         Booking b = bc.registerWalkInGuest(
                 "Lionel Messi", "Male", "019-8889999", "messi@intermiami.com", "IC870624",
-                checkIn, checkOut, 1, "Presidential Suite"
+                checkIn, checkOut, 1, "Standard Double"
         );
         System.out.println("1. Walk-In Guest Registered: " + b.getBookingID() + " with dates: " + b.getCheckInDate() + " -> " + b.getCheckOutDate());
 
         // 2. Assign room for this specific booking
-        Booking assigned = bc.assignRoomByRoomType("Presidential Suite");
+        Booking assigned = bc.assignRoomByRoomType("Standard Double");
         System.out.println("2. Room Assigned: " + assigned.getRoom().getRoomNumber());
         System.out.println("   Assigned Booking Dates: " + assigned.getCheckInDate() + " -> " + assigned.getCheckOutDate());
 
@@ -35,7 +35,7 @@ public class DateLinkageAndReportsTest {
                 assigned.getRoom().getCategory(),
                 assigned.getRoom().getRoomNumber(),
                 1,
-                1200.00,
+                150.00,
                 "Checked-In",
                 assigned.getCheckInDate(),
                 assigned.getCheckOutDate()
@@ -50,7 +50,7 @@ public class DateLinkageAndReportsTest {
             System.err.println("FAILED: Reservation did NOT preserve the exact dates 2026-09-01 to 2026-09-02!");
             System.exit(1);
         }
-        System.out.println("   ? Date validation PASSED: 2026-09-01 to 2026-09-02 successfully preserved in Reservation!");
+        System.out.println("   [PASS] Date validation PASSED: 2026-09-01 to 2026-09-02 successfully preserved in Reservation!");
 
         // Clean up test reservation
         fdc.deleteReservation(res.getConfirmationNumber());

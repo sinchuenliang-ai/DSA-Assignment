@@ -318,7 +318,15 @@ public class BookingControl {
 
     private boolean matchesRoomType(String actual, String expected) {
         if (actual == null || expected == null) return false;
-        return actual.trim().equalsIgnoreCase(expected.trim());
+        String a = actual.trim().toLowerCase();
+        String e = expected.trim().toLowerCase();
+        if (a.equals(e)) return true;
+        if (a.contains("presidential") && e.contains("presidential")) return true;
+        if ((a.contains("executive") || a.equals("suite")) && (e.contains("executive") || e.equals("suite"))) return true;
+        if (a.contains("deluxe") && e.contains("deluxe")) return true;
+        if (a.contains("double") && e.contains("double")) return true;
+        if (a.contains("single") && e.contains("single")) return true;
+        return false;
     }
 
     private Room extractRoomByType(String roomType) {
@@ -390,201 +398,5 @@ public class BookingControl {
 
     public int getAvailableRoomsCount() { 
         return availableRooms.size(); 
-    }
-    
-    // =========================================================================
-    // REPORT 1: Booking Analytics Report
-    // =========================================================================
-    public void generateBookingAnalyticsReport(String startDate, String endDate, String roomTypeFilter) {
-        // Queue ADT to hold filtered results for sorting
-        QueueInterface<Booking> filteredQueue = new LinkedQueue<>();
-        QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
-        String targetRoom = (roomTypeFilter == null || roomTypeFilter.equalsIgnoreCase("ALL")) ? "" : roomTypeFilter.toLowerCase();
-
-        // 1. FILTERING & SEARCHING (Multiple Criteria: Date Range AND Room Type)
-        while (!allBookings.isEmpty()) {
-            Booking b = allBookings.dequeue();
-            String checkIn = b.getCheckInDate();
-            String reqType = b.getRequestedRoomType() != null ? b.getRequestedRoomType().toLowerCase() : "";
-
-            // Multiple Filter Criteria: Date range check & Room Type check
-            boolean matchesDate = (checkIn != null && isWithinDateRange(checkIn, startDate, endDate));
-            boolean matchesRoom = targetRoom.isEmpty() || reqType.contains(targetRoom);
-
-            if (matchesDate && matchesRoom) {
-                filteredQueue.enqueue(b);
-            }
-        }
-
-        int totalCount = filteredQueue.size();
-
-        // 2. SORTING: Convert Queue to array temporarily to perform Bubble Sort
-        Booking[] array = queueToArray(filteredQueue);
-        sortBookingsByGuestsDescending(array);
-
-        // 3. CONSOLE REPORT OUTPUT
-        System.out.println("\n==================================================================================");
-        System.out.println("                         BOOKING ANALYTICS REPORT                                ");
-        System.out.println("==================================================================================");
-        System.out.printf(" Filter Period : %s to %s\n", startDate, endDate);
-        System.out.printf(" Room Filter   : %s\n", targetRoom.isEmpty() ? "ALL ROOM TYPES" : roomTypeFilter.toUpperCase());
-        System.out.println("----------------------------------------------------------------------------------");
-        System.out.printf(" %-30s | %-18d \n", "Total Filtered Bookings", totalCount);
-        System.out.println("==================================================================================");
-        
-        System.out.println("\n--- FILTERED BOOKINGS SUMMARY (SORTED BY NUMBER OF GUESTS DESCENDING) ---");
-        System.out.printf(" %-12s | %-12s | %-20s | %-12s | %-10s\n", "Booking ID", "Guest ID", "Guest Name", "Check-In", "Guests");
-        System.out.println("----------------------------------------------------------------------------------");
-
-        if (array.length == 0) {
-            System.out.println("                     No records found for the given date range.                  ");
-        } else {
-            for (Booking b : array) {
-                String guestId = (b.getGuest() != null) ? b.getGuest().getGuestID() : "N/A";
-                String guestName = (b.getGuest() != null) ? b.getGuest().getGuestName() : "N/A";
-                System.out.printf(" %-12s | %-12s | %-20s | %-12s | %-10d\n",
-                        b.getBookingID(), guestId, guestName, b.getCheckInDate(), b.getNumberOfGuests());
-            }
-        }
-        System.out.println("==================================================================================\n");
-    }
-
-    // =========================================================================
-    // REPORT 2: Room Type Demand & Walk-In Conversion Report
-    // =========================================================================
-    public void generateRoomTypeDemandReport(String filterRoomType, String statusFilter, int minGuests) {
-        int totalRequests = 0;
-        int assignedCount = 0;
-        int waitingCount = 0;
-
-        QueueInterface<Booking> matchedQueue = new LinkedQueue<>();
-        QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
-
-        String targetType = (filterRoomType == null || filterRoomType.equalsIgnoreCase("ALL")) ? "" : filterRoomType.trim().toLowerCase();
-        String targetStatus = (statusFilter == null || statusFilter.equalsIgnoreCase("ALL")) ? "" : statusFilter.trim().toLowerCase();
-
-        // 1. SEARCHING & FILTERING (Multiple Criteria: Room Type, Status, and Min Guests)
-        while (!allBookings.isEmpty()) {
-            Booking b = allBookings.dequeue();
-            String reqType = b.getRequestedRoomType() != null ? b.getRequestedRoomType().toLowerCase() : "";
-            String assignedType = (b.getRoom() != null && b.getRoom().getRoomType() != null) ? b.getRoom().getRoomType().toLowerCase() : "";
-            String currentStatus = (b.getBookingStatus() != null) ? b.getBookingStatus().toLowerCase() : "";
-
-            // Multiple Filter Criteria
-            boolean matchesRoom = targetType.isEmpty() || reqType.contains(targetType) || assignedType.contains(targetType);
-            boolean matchesStatus = targetStatus.isEmpty() || currentStatus.contains(targetStatus);
-            boolean matchesGuests = b.getNumberOfGuests() >= minGuests;
-
-            if (matchesRoom && matchesStatus && matchesGuests) {
-                matchedQueue.enqueue(b);
-                totalRequests++;
-
-                if (b.getRoom() != null) {
-                    assignedCount++;
-                } else {
-                    waitingCount++;
-                }
-            }
-        }
-
-        // 2. SORTING: Sort matched queue by Booking ID
-        Booking[] array = queueToArray(matchedQueue);
-        sortBookingsByID(array);
-
-        // 3. CONSOLE REPORT OUTPUT
-        double conversionRate = totalRequests > 0 ? ((double) assignedCount / totalRequests) * 100 : 0.0;
-
-        System.out.println("\n==================================================================================");
-        System.out.println("                  ROOM TYPE DEMAND & WALK-IN CONVERSION REPORT                   ");
-        System.out.println("==================================================================================");
-        System.out.printf(" Room Type Filter : %s\n", targetType.isEmpty() ? "ALL ROOM TYPES" : filterRoomType.toUpperCase());
-        System.out.printf(" Status Filter    : %s\n", targetStatus.isEmpty() ? "ALL STATUSES" : statusFilter.toUpperCase());
-        System.out.printf(" Minimum Guests   : %d\n", minGuests);
-        System.out.println("----------------------------------------------------------------------------------");
-        System.out.printf(" %-30s : %d\n", "Total Room Demands/Requests", totalRequests);
-        System.out.printf(" %-30s : %d\n", "Successfully Assigned Rooms", assignedCount);
-        System.out.printf(" %-30s : %d\n", "Pending / In Waiting Queue", waitingCount);
-        System.out.printf(" %-30s : %.2f%%\n", "Walk-In Room Conversion Rate", conversionRate);
-        System.out.println("==================================================================================");
-        System.out.printf(" %-12s | %-15s | %-15s | %-12s | %-15s\n", "Booking ID", "Requested", "Assigned Room", "Check-In", "Status");
-        System.out.println("----------------------------------------------------------------------------------");
-
-        if (array.length == 0) {
-            System.out.println("                       No matching booking records found.                         ");
-        } else {
-            for (Booking b : array) {
-                String req = b.getRequestedRoomType() != null ? b.getRequestedRoomType() : "N/A";
-                String roomNum = (b.getRoom() != null) ? b.getRoom().getRoomNumber() : "UNASSIGNED";
-                String status = (b.getBookingStatus() != null) ? b.getBookingStatus() : "Waiting";
-
-                System.out.printf(" %-12s | %-15s | %-15s | %-12s | %-15s\n",
-                        b.getBookingID(), req, roomNum, b.getCheckInDate(), status);
-            }
-        }
-        System.out.println("==================================================================================\n");
-    }
-
-    // =========================================================================
-    // HELPER ALGORITHMS & UTILITIES
-    // =========================================================================
-    
-    // Bubble Sort: Sorts Bookings by Number of Guests (Descending)
-    private void sortBookingsByGuestsDescending(Booking[] arr) {
-        int n = arr.length;
-        for (int i = 0; i < n - 1; i++) {
-            for (int j = 0; j < n - i - 1; j++) {
-                if (arr[j].getNumberOfGuests() < arr[j + 1].getNumberOfGuests()) {
-                    Booking temp = arr[j];
-                    arr[j] = arr[j + 1];
-                    arr[j + 1] = temp;
-                }
-            }
-        }
-    }
-
-    // Bubble Sort: Sorts Bookings by Booking ID (Ascending)
-    private void sortBookingsByID(Booking[] arr) {
-        int n = arr.length;
-        for (int i = 0; i < n - 1; i++) {
-            for (int j = 0; j < n - i - 1; j++) {
-                if (arr[j].getBookingID().compareToIgnoreCase(arr[j + 1].getBookingID()) > 0) {
-                    Booking temp = arr[j];
-                    arr[j] = arr[j + 1];
-                    arr[j + 1] = temp;
-                }
-            }
-        }
-    }
-
-    // Helper to extract Queue elements into an Array for sorting without losing Queue reference
-    private Booking[] queueToArray(QueueInterface<Booking> queue) {
-        int size = queue.size();
-        Booking[] arr = new Booking[size];
-        QueueInterface<Booking> temp = new LinkedQueue<>();
-
-        int idx = 0;
-        while (!queue.isEmpty()) {
-            Booking b = queue.dequeue();
-            arr[idx++] = b;
-            temp.enqueue(b);
-        }
-
-        while (!temp.isEmpty()) {
-            queue.enqueue(temp.dequeue());
-        }
-
-        return arr;
-    }
-
-    // Date comparison helper function
-    private boolean isWithinDateRange(String date, String start, String end) {
-        try {
-            LocalDate current = LocalDate.parse(date);
-            LocalDate s = LocalDate.parse(start);
-            LocalDate e = LocalDate.parse(end);
-            return (!current.isBefore(s)) && (!current.isAfter(e));
-        } catch (Exception ex) {
-            return date.compareTo(start) >= 0 && date.compareTo(end) <= 0;
-        }
     }
 }

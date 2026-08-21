@@ -40,6 +40,7 @@ public class FrontDeskControl {
 
   public FrontDeskControl(BookingControl bookingControl, HouseKeepingControl houseKeepingControl) {
     FileHandler.loadReservations(reservationTree);
+    normalizeReservationStatuses();
     loadPendingWalkInsFromFile();
 
     if (bookingControl != null) {
@@ -149,6 +150,17 @@ public class FrontDeskControl {
 
   public Reservation registerGuestAndAssignConfirmation(String guestName, String roomCategory, String roomNumber, int stayDays, double totalBill, String status, String checkInDate, String checkOutDate) {
     String confirmationNumber = generate8DigitConfirmationNumber();
+
+    // Auto-determine Reserved vs Checked-In based on check-in date
+    if (checkInDate != null && !checkInDate.isEmpty()) {
+      try {
+        LocalDate parsedIn = LocalDate.parse(checkInDate);
+        if (parsedIn.isAfter(LocalDate.now())) {
+          status = "Reserved";
+        }
+      } catch (Exception ignored) {}
+    }
+
     Reservation newReservation = new Reservation(
         confirmationNumber,
         guestName,
@@ -189,6 +201,10 @@ public class FrontDeskControl {
   private String formatPaddedStatus(String status, int columnWidth) {
     if ("Checked-In".equalsIgnoreCase(status)) {
       String text = "** CHECKED-IN **";
+      return String.format("%" + columnWidth + "s", text);
+    }
+    if ("Reserved".equalsIgnoreCase(status)) {
+      String text = "* RESERVED *";
       return String.format("%" + columnWidth + "s", text);
     }
     
@@ -385,28 +401,39 @@ public class FrontDeskControl {
     String roomNo = booking.getRoom() != null ? booking.getRoom().getRoomNumber() : "Pending";
     String category = booking.getRoom() != null ? booking.getRoom().getCategory() : "Standard";
 
+    LocalDate today = LocalDate.now();
+    LocalDate inDate = null;
+    LocalDate outDate = null;
     int days = 1;
     try {
-      LocalDate inDate = LocalDate.parse(booking.getCheckInDate());
-      LocalDate outDate = LocalDate.parse(booking.getCheckOutDate());
-      long diff = ChronoUnit.DAYS.between(inDate, outDate);
-      if (diff > 0) days = (int) diff;
+      if (booking.getCheckInDate() != null && !booking.getCheckInDate().isEmpty()) {
+        inDate = LocalDate.parse(booking.getCheckInDate());
+      }
+      if (booking.getCheckOutDate() != null && !booking.getCheckOutDate().isEmpty()) {
+        outDate = LocalDate.parse(booking.getCheckOutDate());
+      }
+      if (inDate != null && outDate != null) {
+        long diff = ChronoUnit.DAYS.between(inDate, outDate);
+        if (diff > 0) days = (int) diff;
+      }
     } catch (Exception ignored) {
     }
+
+    if (inDate == null) inDate = today;
+    if (outDate == null) outDate = inDate.plusDays(days);
+
+    String inDateStr = inDate.toString();
+    String outDateStr = outDate.toString();
 
     double rate = booking.getRoom() != null && booking.getRoom().getRatePerNight() > 0 
                   ? booking.getRoom().getRatePerNight() 
                   : getRoomRate(category);
     double totalBill = rate * days;
 
-    String inDateStr = (booking.getCheckInDate() != null && !booking.getCheckInDate().isEmpty())
-        ? booking.getCheckInDate()
-        : LocalDate.now().toString();
-    String outDateStr = (booking.getCheckOutDate() != null && !booking.getCheckOutDate().isEmpty())
-        ? booking.getCheckOutDate()
-        : LocalDate.now().plusDays(days).toString();
+    // Auto-determine Reserved if check-in date is in the future
+    String initialStatus = inDate.isAfter(today) ? "Reserved" : "Checked-In";
 
-    Reservation newRes = new Reservation(confirmNo, guestName, category, roomNo, days, totalBill, "Checked-In", inDateStr, outDateStr);
+    Reservation newRes = new Reservation(confirmNo, guestName, category, roomNo, days, totalBill, initialStatus, inDateStr, outDateStr);
     reservationTree.add(newRes);
     FileHandler.saveReservations(reservationTree);
 
@@ -427,6 +454,10 @@ public class FrontDeskControl {
       }
     }
 
+    String statusDisplay = "Reserved".equalsIgnoreCase(initialStatus)
+        ? "Reserved (Upcoming Check-In on " + inDateStr + ")"
+        : "Checked-In (Active Reservation)";
+
     System.out.println("\n+=======================================================================+");
     System.out.println("|             WALK-IN CONFIRMATION ASSIGNED SUCCESSFULLY                |");
     System.out.println("+=======================================================================+");
@@ -436,12 +467,12 @@ public class FrontDeskControl {
     System.out.printf("|  %-22s : %-44s |\n", "Contact Phone", (booking.getGuest() != null ? booking.getGuest().getPhoneNumber() : "-"));
     System.out.printf("|  %-22s : %-44s |\n", "Assigned Room", roomNo + " (" + (booking.getRoom() != null ? booking.getRoom().getRoomType() : category) + ")");
     System.out.printf("|  %-22s : %-44s |\n", "Stay Duration", days + " Night(s) (" + booking.getCheckInDate() + " to " + booking.getCheckOutDate() + ")");
-    System.out.printf("|  %-22s : $%-43.2f |\n", "Total Bill Amount", totalBill);
+    System.out.printf("|  %-22s : RM %-41.2f |\n", "Total Bill Amount", totalBill);
     if (loyaltyMember != null) {
       System.out.printf("|  %-22s : %-44s |\n", "Loyalty Member", loyaltyMember.getMemberId() + " (" + loyaltyMember.getTier() + " Tier)");
       System.out.printf("|  %-22s : %-44s |\n", "Points Earned", "+" + pointsEarned + " (New Bal: " + loyaltyMember.getPoints() + ")");
     }
-    System.out.printf("|  %-22s : %-44s |\n", "Front Desk Status", "Checked-In (Active Reservation)");
+    System.out.printf("|  %-22s : %-44s |\n", "Front Desk Status", statusDisplay);
     System.out.println("+=======================================================================+");
     System.out.println("  Reservation has been added to Front Desk BST and saved to disk.");
   }
@@ -1157,4 +1188,48 @@ public void updateReservationStatus() {
       default -> Double.compare(b.totalRevenue, a.totalRevenue);
     };
   }
+  
+  private void normalizeReservationStatuses() {
+    LocalDate today = LocalDate.now();
+    boolean updated = false;
+    Iterator<Reservation> it = reservationTree.getInorderIterator();
+    List<Reservation> toUpdate = new ArrayList<>();
+    
+    while (it.hasNext()) {
+        Reservation r = it.next();
+        String currentStatus = r.getStatus();
+        String inDateStr = r.getCheckInDate();
+        String outDateStr = r.getCheckOutDate();
+        
+        LocalDate inDate = null, outDate = null;
+        try {
+            if (inDateStr != null && !inDateStr.isEmpty()) inDate = LocalDate.parse(inDateStr);
+        } catch (Exception ignored) {}
+        try {
+            if (outDateStr != null && !outDateStr.isEmpty()) outDate = LocalDate.parse(outDateStr);
+        } catch (Exception ignored) {}
+        
+        // Future check‑in → should be Reserved (unless already Checked‑Out)
+        if (inDate != null && inDate.isAfter(today)) {
+            if (!"Reserved".equalsIgnoreCase(currentStatus) && !"Checked-Out".equalsIgnoreCase(currentStatus)) {
+                r.setStatus("Reserved");
+                updated = true;
+            }
+        }
+        // Past check‑out → should be Checked‑Out (unless Maintenance)
+        if (outDate != null && outDate.isBefore(today)) {
+            if (!"Checked-Out".equalsIgnoreCase(currentStatus) && !"Maintenance".equalsIgnoreCase(currentStatus)) {
+                r.setStatus("Checked-Out");
+                updated = true;
+            }
+        }
+        // Optional: if today is between check‑in and check‑out and status is Reserved, you could set to Checked‑In,
+        // but we leave it as is to avoid auto‑check‑in before guest arrives.
+    }
+    
+    if (updated) {
+        FileHandler.saveReservations(reservationTree);
+        System.out.println("  [System] Reservation statuses normalized based on current date.");
+    }
+}
 }

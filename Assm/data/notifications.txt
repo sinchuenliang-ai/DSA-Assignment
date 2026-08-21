@@ -7,3 +7,9 @@ M009|POINTS_EARNED|1000 Points Earned!|You earned 1000 points. Balance: 1000
 M009|TIER_UPGRADE|Tier Upgrade! Gold Level Achieved!|Congratulations! You've been upgraded to Gold tier!
 M012|POINTS_EARNED|12000 Points Earned!|You earned 12000 points. Balance: 12000
 M012|TIER_UPGRADE|Tier Upgrade! Platinum Level Achieved!|Congratulations! You've been upgraded to Platinum tier!
+M001|POINTS_EARNED|18000 Points Earned!|You earned 18000 points. Balance: 19500
+M001|TIER_UPGRADE|Tier Upgrade! Diamond Level Achieved!|Congratulations! You've been upgraded to Diamond tier!
+M014|POINTS_EARNED|12000 Points Earned!|You earned 12000 points. Balance: 12000
+M014|TIER_UPGRADE|Tier Upgrade! Platinum Level Achieved!|Congratulations! You've been upgraded to Platinum tier!
+M001|POINTS_EARNED|30000 Points Earned!|You earned 30000 points. Balance: 49500
+M001|TIER_UPGRADE|Tier Upgrade! Elite Level Achieved!|Congratulations! You've been upgraded to Elite tier!
