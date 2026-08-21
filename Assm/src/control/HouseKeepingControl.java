@@ -412,4 +412,213 @@ public class HouseKeepingControl {
     public boolean hasTask() {
         return !taskStack.isEmpty();
     }
+
+    // =========================================================
+    // REPORT 1: HOUSEKEEPING STATUS REPORT
+    // =========================================================
+    public void generateStatusReport(String statusFilter, String staffIDFilter) {
+
+        if (taskStack.isEmpty()) {
+            System.out.println("No housekeeping data available.");
+            return;
+        }
+
+        // Temporary stack so original taskStack will not be changed
+        ArrayStack<HousekeepingTask> tempStack = new ArrayStack<>();
+
+        // Store latest record for each Task ID
+        Map<String, HousekeepingTask> latestTasks = new HashMap<>();
+
+        // ================================
+        // SEARCHING
+        // ================================
+        while (!taskStack.isEmpty()) {
+
+            HousekeepingTask task = taskStack.pop();
+
+            // First occurrence is the latest status
+            if (!latestTasks.containsKey(task.getTaskID())) {
+                latestTasks.put(task.getTaskID(), task);
+            }
+
+            tempStack.push(task);
+        }
+
+        // Restore original stack
+        while (!tempStack.isEmpty()) {
+            taskStack.push(tempStack.pop());
+        }
+
+        // Array to store filtered results
+        HousekeepingTask[] reportTasks =
+                new HousekeepingTask[latestTasks.size()];
+
+        int count = 0;
+
+        // ================================
+        // MULTIPLE CRITERIA FILTERING
+        // ================================
+        for (HousekeepingTask task : latestTasks.values()) {
+
+            boolean statusMatch =
+                    statusFilter.equalsIgnoreCase("ALL")
+                    || task.getStatus().equalsIgnoreCase(statusFilter);
+
+            boolean staffMatch =
+                    staffIDFilter.equalsIgnoreCase("ALL")
+                    || task.getAssignedStaffID()
+                            .equalsIgnoreCase(staffIDFilter);
+
+            if (statusMatch && staffMatch) {
+                reportTasks[count] = task;
+                count++;
+            }
+        }
+
+        // ================================
+        // SORTING BY ROOM NUMBER
+        // Bubble Sort
+        // ================================
+        for (int i = 0; i < count - 1; i++) {
+
+            for (int j = 0; j < count - i - 1; j++) {
+
+                if (reportTasks[j].getLocation()
+                        .compareToIgnoreCase(
+                                reportTasks[j + 1].getLocation()) > 0) {
+
+                    HousekeepingTask temp = reportTasks[j];
+                    reportTasks[j] = reportTasks[j + 1];
+                    reportTasks[j + 1] = temp;
+                }
+            }
+        }
+
+        // ================================
+        // REPORT OUTPUT
+        // ================================
+        System.out.println("\n==============================================");
+        System.out.println("       HOUSEKEEPING STATUS REPORT");
+        System.out.println("==============================================");
+
+        System.out.println("Status Filter : " + statusFilter);
+        System.out.println("Staff Filter  : " + staffIDFilter);
+
+        System.out.println("----------------------------------------------");
+
+        System.out.printf("%-10s %-10s %-25s %-10s%n",
+                "Task ID", "Room", "Status", "Staff ID");
+
+        System.out.println("----------------------------------------------");
+
+        for (int i = 0; i < count; i++) {
+
+            HousekeepingTask task = reportTasks[i];
+
+            System.out.printf("%-10s %-10s %-25s %-10s%n",
+                    task.getTaskID(),
+                    task.getLocation(),
+                    task.getStatus(),
+                    task.getAssignedStaffID());
+        }
+
+        System.out.println("----------------------------------------------");
+        System.out.println("Total Matching Tasks: " + count);
+        System.out.println("==============================================");
+    }
+
+
+    // =========================================================
+    // REPORT 2: HOUSEKEEPING STATUS ANALYSIS REPORT
+    // =========================================================
+    public void generateStatusAnalysisReport() {
+
+        if (taskStack.isEmpty()) {
+            System.out.println("No housekeeping data available.");
+            return;
+        }
+
+        ArrayStack<HousekeepingTask> tempStack = new ArrayStack<>();
+
+        // Store only latest status for each Task ID
+        Map<String, HousekeepingTask> latestTasks = new HashMap<>();
+
+        // ================================
+        // SEARCHING
+        // ================================
+        while (!taskStack.isEmpty()) {
+
+            HousekeepingTask task = taskStack.pop();
+
+            if (!latestTasks.containsKey(task.getTaskID())) {
+                latestTasks.put(task.getTaskID(), task);
+            }
+
+            tempStack.push(task);
+        }
+
+        // Restore original taskStack
+        while (!tempStack.isEmpty()) {
+            taskStack.push(tempStack.pop());
+        }
+
+        int dirtyCount = 0;
+        int cleaningCount = 0;
+        int inspectedCount = 0;
+        int readyCount = 0;
+
+        // ================================
+        // ANALYSIS
+        // ================================
+        for (HousekeepingTask task : latestTasks.values()) {
+
+            if (task.getStatus().equalsIgnoreCase("Dirty")) {
+                dirtyCount++;
+
+            } else if (task.getStatus()
+                    .equalsIgnoreCase("Cleaning In Progress")) {
+                cleaningCount++;
+
+            } else if (task.getStatus()
+                    .equalsIgnoreCase("Inspected")) {
+                inspectedCount++;
+
+            } else if (task.getStatus()
+                    .equalsIgnoreCase("Ready for Check-In")) {
+                readyCount++;
+            }
+        }
+
+        // ================================
+        // REPORT OUTPUT
+        // ================================
+        System.out.println("\n==============================================");
+        System.out.println("    HOUSEKEEPING STATUS ANALYSIS REPORT");
+        System.out.println("==============================================");
+
+        System.out.printf("%-30s %10s%n",
+                "Status", "Number of Rooms");
+
+        System.out.println("----------------------------------------------");
+
+        System.out.printf("%-30s %10d%n",
+                "Dirty", dirtyCount);
+
+        System.out.printf("%-30s %10d%n",
+                "Cleaning In Progress", cleaningCount);
+
+        System.out.printf("%-30s %10d%n",
+                "Inspected", inspectedCount);
+
+        System.out.printf("%-30s %10d%n",
+                "Ready for Check-In", readyCount);
+
+        System.out.println("----------------------------------------------");
+
+        System.out.println(
+                "Total Active Tasks: " + latestTasks.size()
+        );
+
+        System.out.println("==============================================");
+    }
 }
