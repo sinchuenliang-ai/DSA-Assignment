@@ -344,7 +344,7 @@ public class HouseKeepingControl {
             return;
         }
 
-        StackInterface<HousekeepingTask> tempStack = new ArrayStack<>();
+        ArrayStack<HousekeepingTask> tempStack = new ArrayStack<>();
 
         while (!taskStack.isEmpty()) {
             HousekeepingTask task = taskStack.pop();
