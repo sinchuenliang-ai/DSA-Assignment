@@ -318,15 +318,7 @@ public class BookingControl {
 
     private boolean matchesRoomType(String actual, String expected) {
         if (actual == null || expected == null) return false;
-        String a = actual.trim().toLowerCase();
-        String e = expected.trim().toLowerCase();
-        if (a.equals(e)) return true;
-        if (a.contains("presidential") && e.contains("presidential")) return true;
-        if ((a.contains("executive") || a.equals("suite")) && (e.contains("executive") || e.equals("suite"))) return true;
-        if (a.contains("deluxe") && e.contains("deluxe")) return true;
-        if (a.contains("double") && e.contains("double")) return true;
-        if (a.contains("single") && e.contains("single")) return true;
-        return false;
+        return actual.trim().equalsIgnoreCase(expected.trim());
     }
 
     private Room extractRoomByType(String roomType) {
@@ -398,5 +390,501 @@ public class BookingControl {
 
     public int getAvailableRoomsCount() { 
         return availableRooms.size(); 
+    }
+
+    /**
+     * Peeks at the next booking in queue without removing it.
+     */
+    public Booking peekNextInQueue(String roomType) {
+        QueueInterface<Booking> queue = getQueueByRoomType(roomType);
+        if (queue.isEmpty()) return null;
+        Booking next = queue.dequeue();
+        // Put it back at front using a temp queue
+        QueueInterface<Booking> temp = new LinkedQueue<>();
+        temp.enqueue(next);
+        while (!queue.isEmpty()) {
+            temp.enqueue(queue.dequeue());
+        }
+        while (!temp.isEmpty()) {
+            queue.enqueue(temp.dequeue());
+        }
+        return next;
+    }
+
+    /**
+     * Displays available rooms filtered by type AND date range (for the Assign Room screen).
+     */
+    public boolean displayAvailableRoomsForType(String roomType, LocalDate checkIn, LocalDate checkOut) {
+        System.out.println("\n==================================================================================");
+        System.out.printf(  " Available %-25s Rooms for Stay: %s to %s\n", roomType, checkIn, checkOut);
+        System.out.println("----------------------------------------------------------------------------------");
+        System.out.printf(" %-15s | %-25s | %-15s\n", "Room Number", "Room Type", "Status");
+        System.out.println("----------------------------------------------------------------------------------");
+
+        java.util.List<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
+        QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
+
+        java.util.Map<String, entity.HousekeepingTask> activeTasks = new java.util.HashMap<>();
+        if (this.houseKeepingControl != null) {
+            activeTasks = this.houseKeepingControl.getAllActiveTasksMap();
+        }
+
+        adt.TreeInterface<entity.Reservation> resTree = new adt.BinarySearchTreeADT<>();
+        utility.FileHandler.loadReservations(resTree);
+        boolean isToday = checkIn.equals(LocalDate.now());
+
+        int count = 0;
+        for (Room room : allRooms) {
+            // Filter to requested room type only
+            if (!room.getRoomType().equalsIgnoreCase(roomType)) continue;
+
+            boolean isAvailable = true;
+
+            if (isToday && activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
+                entity.HousekeepingTask t = activeTasks.get(room.getRoomNumber().toUpperCase());
+                if (t != null && !t.getStatus().equalsIgnoreCase("Ready for Check-In")) {
+                    isAvailable = false;
+                }
+            }
+
+            if (isAvailable) {
+                java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
+                while (it.hasNext()) {
+                    entity.Reservation r = it.next();
+                    if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
+                        LocalDate rIn = LocalDate.now();
+                        LocalDate rOut = rIn.plusDays(r.getStayDurationDays());
+                        if (!(rOut.isBefore(checkIn) || rIn.isAfter(checkOut))) {
+                            isAvailable = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            QueueInterface<Booking> temp = new LinkedQueue<>();
+            while (!allBookings.isEmpty()) {
+                Booking b = allBookings.dequeue();
+                temp.enqueue(b);
+                if (isAvailable && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
+                    if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
+                        try {
+                            LocalDate bIn = LocalDate.parse(b.getCheckInDate());
+                            LocalDate bOut = LocalDate.parse(b.getCheckOutDate());
+                            if (!(bOut.isBefore(checkIn) || bIn.isAfter(checkOut))) {
+                                isAvailable = false;
+                            }
+                        } catch (Exception ignored) {
+                            isAvailable = false;
+                        }
+                    }
+                }
+            }
+            while (!temp.isEmpty()) allBookings.enqueue(temp.dequeue());
+
+            if (isAvailable) {
+                System.out.printf(" %-15s | %-25s | %-15s\n", room.getRoomNumber(), room.getRoomType(), "AVAILABLE");
+                count++;
+            }
+        }
+
+        System.out.println("==================================================================================");
+        System.out.println(" Total Available: " + count);
+        return count > 0;
+    }
+
+    /**
+     * Assigns the next guest in queue to the first room that is free for their specific dates.
+     */
+    public Booking assignRoomByRoomTypeAndDates(String roomType, LocalDate checkIn, LocalDate checkOut) {
+        QueueInterface<Booking> targetQueue = getQueueByRoomType(roomType);
+        if (targetQueue.isEmpty()) return null;
+
+        java.util.List<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
+        QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
+
+        java.util.Map<String, entity.HousekeepingTask> activeTasks = new java.util.HashMap<>();
+        if (this.houseKeepingControl != null) {
+            activeTasks = this.houseKeepingControl.getAllActiveTasksMap();
+        }
+        adt.TreeInterface<entity.Reservation> resTree = new adt.BinarySearchTreeADT<>();
+        utility.FileHandler.loadReservations(resTree);
+        boolean isToday = checkIn.equals(LocalDate.now());
+
+        // Find first available room of this type for the requested dates
+        Room chosenRoom = null;
+        for (Room room : allRooms) {
+            if (!room.getRoomType().equalsIgnoreCase(roomType)) continue;
+
+            boolean isAvailable = true;
+
+            if (isToday && activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
+                entity.HousekeepingTask t = activeTasks.get(room.getRoomNumber().toUpperCase());
+                if (t != null && !t.getStatus().equalsIgnoreCase("Ready for Check-In")) {
+                    isAvailable = false;
+                }
+            }
+
+            if (isAvailable) {
+                java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
+                while (it.hasNext()) {
+                    entity.Reservation r = it.next();
+                    if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
+                        LocalDate rIn = LocalDate.now();
+                        LocalDate rOut = rIn.plusDays(r.getStayDurationDays());
+                        if (!(rOut.isBefore(checkIn) || rIn.isAfter(checkOut))) {
+                            isAvailable = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            QueueInterface<Booking> temp = new LinkedQueue<>();
+            while (!allBookings.isEmpty()) {
+                Booking b = allBookings.dequeue();
+                temp.enqueue(b);
+                if (isAvailable && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
+                    if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
+                        try {
+                            LocalDate bIn = LocalDate.parse(b.getCheckInDate());
+                            LocalDate bOut = LocalDate.parse(b.getCheckOutDate());
+                            if (!(bOut.isBefore(checkIn) || bIn.isAfter(checkOut))) {
+                                isAvailable = false;
+                            }
+                        } catch (Exception ignored) {
+                            isAvailable = false;
+                        }
+                    }
+                }
+            }
+            while (!temp.isEmpty()) allBookings.enqueue(temp.dequeue());
+
+            if (isAvailable) {
+                chosenRoom = room;
+                break;
+            }
+        }
+
+        if (chosenRoom == null) return null;
+
+        // Dequeue next guest and assign the chosen room
+        Booking nextBooking = targetQueue.dequeue();
+        chosenRoom.setRoomStatus("Occupied");
+        nextBooking.setRoom(chosenRoom);
+        nextBooking.setBookingStatus("Assigned - Pending Front Desk Confirmation");
+
+        // Remove it from the availableRooms queue too
+        QueueInterface<Room> tempRooms = new LinkedQueue<>();
+        while (!availableRooms.isEmpty()) {
+            Room r = availableRooms.dequeue();
+            if (!r.getRoomNumber().equalsIgnoreCase(chosenRoom.getRoomNumber())) {
+                tempRooms.enqueue(r);
+            }
+        }
+        while (!tempRooms.isEmpty()) availableRooms.enqueue(tempRooms.dequeue());
+
+        pendingWalkInConfirmations.enqueue(nextBooking);
+        if (frontDeskControl != null) {
+            frontDeskControl.addPendingWalkInBooking(nextBooking);
+        }
+
+        saveAllBookings();
+        FileHandler.saveRooms(availableRooms);
+        return nextBooking;
+    }
+
+    // =========================================================================
+    // MULTI-DAY AVAILABILITY CHECK (for Register Walk-In - Option 1)
+    // =========================================================================
+    public boolean displayAvailableRoomsForStay(LocalDate checkIn, LocalDate checkOut) {
+        System.out.println("\n==================================================================================");
+        System.out.println("                         MULTI-DAY ROOM AVAILABILITY                             ");
+        System.out.println("==================================================================================");
+        System.out.printf(" Requested Stay : %s to %s\n", checkIn, checkOut);
+        System.out.println("----------------------------------------------------------------------------------");
+        System.out.printf(" %-15s | %-25s | %-15s\n", "Room Number", "Room Type", "Status");
+        System.out.println("----------------------------------------------------------------------------------");
+
+        QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
+        java.util.List<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
+        
+        // 1. Integrate with HouseKeeping Module
+        java.util.Map<String, entity.HousekeepingTask> activeTasks = new java.util.HashMap<>();
+        if (this.houseKeepingControl != null) {
+            activeTasks = this.houseKeepingControl.getAllActiveTasksMap();
+        }
+        
+        // Load active reservations from Front Desk
+        adt.TreeInterface<entity.Reservation> resTree = new adt.BinarySearchTreeADT<>();
+        utility.FileHandler.loadReservations(resTree);
+
+        boolean isToday = checkIn.equals(LocalDate.now());
+        int availableCount = 0;
+        
+        for (Room room : allRooms) {
+            boolean isAvailable = true;
+            
+            // 2. Check Housekeeping Status (only blocks immediate walk-ins for today)
+            if (isToday && activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
+                entity.HousekeepingTask t = activeTasks.get(room.getRoomNumber().toUpperCase());
+                if (t != null && !t.getStatus().equalsIgnoreCase("Ready for Check-In")) {
+                    isAvailable = false;
+                }
+            }
+            
+            // 3. Check FrontDesk Reservations (Checked-In guests)
+            if (isAvailable) {
+                java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
+                while (it.hasNext()) {
+                    entity.Reservation r = it.next();
+                    if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
+                        LocalDate rIn = LocalDate.now(); // System assumes current active reservations start from 'today' for overlap logic
+                        LocalDate rOut = rIn.plusDays(r.getStayDurationDays());
+                        
+                        // Overlap check (Must match FrontDeskControl logic exactly)
+                        boolean overlaps = !(rOut.isBefore(checkIn) || rIn.isAfter(checkOut));
+                        if (overlaps) {
+                            isAvailable = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 4. Check existing Waiting/Pending Bookings overlap
+            QueueInterface<Booking> temp = new LinkedQueue<>();
+            while (!allBookings.isEmpty()) {
+                Booking b = allBookings.dequeue();
+                temp.enqueue(b);
+                
+                if (isAvailable && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
+                    if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
+                        try {
+                            LocalDate bCheckIn = LocalDate.parse(b.getCheckInDate());
+                            LocalDate bCheckOut = LocalDate.parse(b.getCheckOutDate());
+                            
+                            // Overlap check (Must match FrontDeskControl logic exactly)
+                            boolean overlaps = !(bCheckOut.isBefore(checkIn) || bCheckIn.isAfter(checkOut));
+                            if (overlaps) {
+                                isAvailable = false;
+                            }
+                        } catch (Exception e) {
+                            isAvailable = false;
+                        }
+                    }
+                }
+            }
+            // Restore bookings
+            while (!temp.isEmpty()) {
+                allBookings.enqueue(temp.dequeue());
+            }
+            
+            if (isAvailable) {
+                System.out.printf(" %-15s | %-25s | %-15s\n", room.getRoomNumber(), room.getRoomType(), "AVAILABLE");
+                availableCount++;
+            }
+        }
+        
+        System.out.println("==================================================================================");
+        System.out.println(" Total Available Rooms for Stay: " + availableCount);
+        
+        return availableCount > 0;
+    }
+
+    // =========================================================================
+    // REPORT 1: Booking Analytics Report
+    // =========================================================================
+    public void generateBookingAnalyticsReport(String startDate, String endDate, String roomTypeFilter) {
+        // Queue ADT to hold filtered results for sorting
+        QueueInterface<Booking> filteredQueue = new LinkedQueue<>();
+        QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
+        String targetRoom = (roomTypeFilter == null || roomTypeFilter.equalsIgnoreCase("ALL")) ? "" : roomTypeFilter.toLowerCase();
+
+        // 1. FILTERING & SEARCHING (Multiple Criteria: Date Range AND Room Type)
+        while (!allBookings.isEmpty()) {
+            Booking b = allBookings.dequeue();
+            String checkIn = b.getCheckInDate();
+            String reqType = b.getRequestedRoomType() != null ? b.getRequestedRoomType().toLowerCase() : "";
+
+            // Multiple Filter Criteria: Date range check & Room Type check
+            boolean matchesDate = (checkIn != null && isWithinDateRange(checkIn, startDate, endDate));
+            boolean matchesRoom = targetRoom.isEmpty() || reqType.contains(targetRoom);
+
+            if (matchesDate && matchesRoom) {
+                filteredQueue.enqueue(b);
+            }
+        }
+
+        int totalCount = filteredQueue.size();
+
+        // 2. SORTING: Convert Queue to array temporarily to perform Bubble Sort
+        Booking[] array = queueToArray(filteredQueue);
+        sortBookingsByGuestsDescending(array);
+
+        // 3. CONSOLE REPORT OUTPUT
+        System.out.println("\n==================================================================================");
+        System.out.println("                         BOOKING ANALYTICS REPORT                                ");
+        System.out.println("==================================================================================");
+        System.out.printf(" Filter Period : %s to %s\n", startDate, endDate);
+        System.out.printf(" Room Filter   : %s\n", targetRoom.isEmpty() ? "ALL ROOM TYPES" : roomTypeFilter.toUpperCase());
+        System.out.println("----------------------------------------------------------------------------------");
+        System.out.printf(" %-30s | %-18d \n", "Total Filtered Bookings", totalCount);
+        System.out.println("==================================================================================");
+        
+        System.out.println("\n--- FILTERED BOOKINGS SUMMARY (SORTED BY NUMBER OF GUESTS DESCENDING) ---");
+        System.out.printf(" %-12s | %-12s | %-20s | %-12s | %-10s\n", "Booking ID", "Guest ID", "Guest Name", "Check-In", "Guests");
+        System.out.println("----------------------------------------------------------------------------------");
+
+        if (array.length == 0) {
+            System.out.println("                     No records found for the given date range.                  ");
+        } else {
+            for (Booking b : array) {
+                String guestId = (b.getGuest() != null) ? b.getGuest().getGuestID() : "N/A";
+                String guestName = (b.getGuest() != null) ? b.getGuest().getGuestName() : "N/A";
+                System.out.printf(" %-12s | %-12s | %-20s | %-12s | %-10d\n",
+                        b.getBookingID(), guestId, guestName, b.getCheckInDate(), b.getNumberOfGuests());
+            }
+        }
+        System.out.println("==================================================================================\n");
+    }
+
+    // =========================================================================
+    // REPORT 2: Room Type Demand & Walk-In Conversion Report
+    // =========================================================================
+    public void generateRoomTypeDemandReport(String filterRoomType, String statusFilter, int minGuests) {
+        int totalRequests = 0;
+        int assignedCount = 0;
+        int waitingCount = 0;
+
+        QueueInterface<Booking> matchedQueue = new LinkedQueue<>();
+        QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
+
+        String targetType = (filterRoomType == null || filterRoomType.equalsIgnoreCase("ALL")) ? "" : filterRoomType.trim().toLowerCase();
+        String targetStatus = (statusFilter == null || statusFilter.equalsIgnoreCase("ALL")) ? "" : statusFilter.trim().toLowerCase();
+
+        // 1. SEARCHING & FILTERING (Multiple Criteria: Room Type, Status, and Min Guests)
+        while (!allBookings.isEmpty()) {
+            Booking b = allBookings.dequeue();
+            String reqType = b.getRequestedRoomType() != null ? b.getRequestedRoomType().toLowerCase() : "";
+            String assignedType = (b.getRoom() != null && b.getRoom().getRoomType() != null) ? b.getRoom().getRoomType().toLowerCase() : "";
+            String currentStatus = (b.getBookingStatus() != null) ? b.getBookingStatus().toLowerCase() : "";
+
+            // Multiple Filter Criteria
+            boolean matchesRoom = targetType.isEmpty() || reqType.contains(targetType) || assignedType.contains(targetType);
+            boolean matchesStatus = targetStatus.isEmpty() || currentStatus.contains(targetStatus);
+            boolean matchesGuests = b.getNumberOfGuests() >= minGuests;
+
+            if (matchesRoom && matchesStatus && matchesGuests) {
+                matchedQueue.enqueue(b);
+                totalRequests++;
+
+                if (b.getRoom() != null) {
+                    assignedCount++;
+                } else {
+                    waitingCount++;
+                }
+            }
+        }
+
+        // 2. SORTING: Sort matched queue by Booking ID
+        Booking[] array = queueToArray(matchedQueue);
+        sortBookingsByID(array);
+
+        // 3. CONSOLE REPORT OUTPUT
+        double conversionRate = totalRequests > 0 ? ((double) assignedCount / totalRequests) * 100 : 0.0;
+
+        System.out.println("\n==================================================================================");
+        System.out.println("                  ROOM TYPE DEMAND & WALK-IN CONVERSION REPORT                   ");
+        System.out.println("==================================================================================");
+        System.out.printf(" Room Type Filter : %s\n", targetType.isEmpty() ? "ALL ROOM TYPES" : filterRoomType.toUpperCase());
+        System.out.printf(" Status Filter    : %s\n", targetStatus.isEmpty() ? "ALL STATUSES" : statusFilter.toUpperCase());
+        System.out.printf(" Minimum Guests   : %d\n", minGuests);
+        System.out.println("----------------------------------------------------------------------------------");
+        System.out.printf(" %-30s : %d\n", "Total Room Demands/Requests", totalRequests);
+        System.out.printf(" %-30s : %d\n", "Successfully Assigned Rooms", assignedCount);
+        System.out.printf(" %-30s : %d\n", "Pending / In Waiting Queue", waitingCount);
+        System.out.printf(" %-30s : %.2f%%\n", "Walk-In Room Conversion Rate", conversionRate);
+        System.out.println("==================================================================================");
+        System.out.printf(" %-12s | %-15s | %-15s | %-12s | %-15s\n", "Booking ID", "Requested", "Assigned Room", "Check-In", "Status");
+        System.out.println("----------------------------------------------------------------------------------");
+
+        if (array.length == 0) {
+            System.out.println("                       No matching booking records found.                         ");
+        } else {
+            for (Booking b : array) {
+                String req = b.getRequestedRoomType() != null ? b.getRequestedRoomType() : "N/A";
+                String roomNum = (b.getRoom() != null) ? b.getRoom().getRoomNumber() : "UNASSIGNED";
+                String status = (b.getBookingStatus() != null) ? b.getBookingStatus() : "Waiting";
+
+                System.out.printf(" %-12s | %-15s | %-15s | %-12s | %-15s\n",
+                        b.getBookingID(), req, roomNum, b.getCheckInDate(), status);
+            }
+        }
+        System.out.println("==================================================================================\n");
+    }
+
+    // =========================================================================
+    // HELPER ALGORITHMS & UTILITIES
+    // =========================================================================
+    
+    // Bubble Sort: Sorts Bookings by Number of Guests (Descending)
+    private void sortBookingsByGuestsDescending(Booking[] arr) {
+        int n = arr.length;
+        for (int i = 0; i < n - 1; i++) {
+            for (int j = 0; j < n - i - 1; j++) {
+                if (arr[j].getNumberOfGuests() < arr[j + 1].getNumberOfGuests()) {
+                    Booking temp = arr[j];
+                    arr[j] = arr[j + 1];
+                    arr[j + 1] = temp;
+                }
+            }
+        }
+    }
+
+    // Bubble Sort: Sorts Bookings by Booking ID (Ascending)
+    private void sortBookingsByID(Booking[] arr) {
+        int n = arr.length;
+        for (int i = 0; i < n - 1; i++) {
+            for (int j = 0; j < n - i - 1; j++) {
+                if (arr[j].getBookingID().compareToIgnoreCase(arr[j + 1].getBookingID()) > 0) {
+                    Booking temp = arr[j];
+                    arr[j] = arr[j + 1];
+                    arr[j + 1] = temp;
+                }
+            }
+        }
+    }
+
+    // Helper to extract Queue elements into an Array for sorting without losing Queue reference
+    private Booking[] queueToArray(QueueInterface<Booking> queue) {
+        int size = queue.size();
+        Booking[] arr = new Booking[size];
+        QueueInterface<Booking> temp = new LinkedQueue<>();
+
+        int idx = 0;
+        while (!queue.isEmpty()) {
+            Booking b = queue.dequeue();
+            arr[idx++] = b;
+            temp.enqueue(b);
+        }
+
+        while (!temp.isEmpty()) {
+            queue.enqueue(temp.dequeue());
+        }
+
+        return arr;
+    }
+
+    // Date comparison helper function
+    private boolean isWithinDateRange(String date, String start, String end) {
+        try {
+            LocalDate current = LocalDate.parse(date);
+            LocalDate s = LocalDate.parse(start);
+            LocalDate e = LocalDate.parse(end);
+            return (!current.isBefore(s)) && (!current.isAfter(e));
+        } catch (Exception ex) {
+            return date.compareTo(start) >= 0 && date.compareTo(end) <= 0;
+        }
     }
 }
