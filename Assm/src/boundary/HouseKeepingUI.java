@@ -45,7 +45,8 @@ public class HouseKeepingUI {
             System.out.println("3. Rollback Last Status");
             System.out.println("4. Display Status History");
             System.out.println("5. Room Checked-In (Complete Cycle)");
-            System.out.println("6. Exit");
+            System.out.println("6. Generate Report");
+            System.out.println("7. Exit");
             System.out.println("========================================");
             System.out.print("Enter your choice: ");
 
@@ -155,10 +156,19 @@ public class HouseKeepingUI {
                     manager.completeHousekeepingCycle();
                     break;
 
+                    
                 // =================================================
-                // 6. EXIT
+                // 6. GENERATE REPORT
                 // =================================================
                 case 6:
+                    generateReportMenu();
+                    break;
+                    
+                    
+                // =================================================
+                // 7. EXIT
+                // =================================================
+                case 7:
                     System.out.println("\nThank you for using the Housekeeping Status Management System.");
                     break;
 
@@ -170,19 +180,153 @@ public class HouseKeepingUI {
                     break;
             }
 
-        } while (choice != 6);
+        } while (choice != 7);
     }
+    
+    
+    
+    // =========================================================
+    // GENERATE REPORT MENU
+    // =========================================================
+    private void generateReportMenu() {
 
-    // =========================================================
-    // FIND STAFF BY STAFF ID
-    // =========================================================
-    private static Staff findStaff(String staffID, List<Staff> staffList) {
-        if (staffID == null || staffList == null) return null;
-        for (Staff s : staffList) {
-            if (s.getStaffID().equalsIgnoreCase(staffID)) {
-                return s;
+        int reportChoice;
+
+        do {
+            System.out.println("\n========================================");
+            System.out.println("           GENERATE REPORT");
+            System.out.println("========================================");
+            System.out.println("1. Housekeeping Status Report");
+            System.out.println("2. Housekeeping Status Analysis Report");
+            System.out.println("3. Back");
+            System.out.println("========================================");
+            System.out.print("Enter your choice: ");
+
+            try {
+                reportChoice = Integer.parseInt(scanner.nextLine().trim());
+            } catch (NumberFormatException e) {
+                reportChoice = -1;
             }
-        }
-        return null;
+
+            switch (reportChoice) {
+
+                // =================================================
+                // 1. HOUSEKEEPING STATUS REPORT
+                // =================================================
+                case 1:
+                    System.out.println(
+                            "\n===== HOUSEKEEPING STATUS REPORT ====="
+                    );
+
+                    System.out.println("\nAvailable Status:");
+                    System.out.println("a. Dirty");
+                    System.out.println("b. Cleaning In Progress");
+                    System.out.println("c. Inspected");
+                    System.out.println("d. Ready for Check-In");
+                    System.out.println("e. ALL");
+
+                    System.out.print("\nEnter Your Choice: ");
+                    String statusChoice =
+                            scanner.nextLine().trim().toLowerCase();
+
+                    String statusFilter = null;
+
+                    switch (statusChoice) {
+                        case "a":
+                            statusFilter = "Dirty";
+                            break;
+
+                        case "b":
+                            statusFilter = "Cleaning In Progress";
+                            break;
+
+                        case "c":
+                            statusFilter = "Inspected";
+                            break;
+
+                        case "d":
+                            statusFilter = "Ready for Check-In";
+                            break;
+
+                        case "e":
+                            statusFilter = "ALL";
+                            break;
+
+                        default:
+                            System.out.println("Invalid status choice.");
+                            break;
+                    }
+
+                    if (statusFilter != null) {
+
+                        System.out.print(
+                                "Enter Staff ID Filter (e.g. S001 or ALL): "
+                        );
+
+                        String staffIDFilter =
+                                scanner.nextLine().trim();
+
+                        manager.generateStatusReport(
+                                statusFilter,
+                                staffIDFilter
+                        );
+                    }
+
+                    // IMPORTANT: do not execute case 2
+                    break;
+
+
+                // =================================================
+                // 2. HOUSEKEEPING STATUS ANALYSIS REPORT
+                // =================================================
+                case 2:
+                    System.out.println(
+                            "\n===== HOUSEKEEPING STATUS ANALYSIS REPORT ====="
+                    );
+
+                    manager.generateStatusAnalysisReport();
+
+                    break;
+
+
+                // =================================================
+                // 3. BACK
+                // =================================================
+                case 3:
+                    System.out.println(
+                            "\nReturning to Housekeeping Status Management..."
+                    );
+                    break;
+
+
+                // =================================================
+                // INVALID CHOICE
+                // =================================================
+                default:
+                    System.out.println(
+                            "\nInvalid choice. Please enter 1-3."
+                    );
+                    break;
+            }
+
+        } while (reportChoice != 3);
     }
+    
+        // =========================================================
+        // FIND STAFF BY STAFF ID
+        // =========================================================
+        private static Staff findStaff(String staffID, List<Staff> staffList) {
+
+            if (staffID == null || staffList == null) {
+                return null;
+            }
+
+            for (Staff s : staffList) {
+                if (s.getStaffID().equalsIgnoreCase(staffID)) {
+                    return s;
+                }
+            }
+
+            return null;
+        }
 }
