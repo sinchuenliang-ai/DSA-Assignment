@@ -452,8 +452,16 @@ public class BookingControl {
                 while (it.hasNext()) {
                     entity.Reservation r = it.next();
                     if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
-                        LocalDate rIn = LocalDate.now();
-                        LocalDate rOut = rIn.plusDays(r.getStayDurationDays());
+                        LocalDate rIn = null;
+                        LocalDate rOut = null;
+                        try {
+                            if (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty())
+                                rIn = LocalDate.parse(r.getCheckInDate());
+                            if (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty())
+                                rOut = LocalDate.parse(r.getCheckOutDate());
+                        } catch (Exception ignored) {}
+                        if (rIn == null) rIn = LocalDate.now();
+                        if (rOut == null) rOut = rIn.plusDays(r.getStayDurationDays());
                         if (!(rOut.isBefore(checkIn) || rIn.isAfter(checkOut))) {
                             isAvailable = false;
                             break;
@@ -530,8 +538,16 @@ public class BookingControl {
                 while (it.hasNext()) {
                     entity.Reservation r = it.next();
                     if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
-                        LocalDate rIn = LocalDate.now();
-                        LocalDate rOut = rIn.plusDays(r.getStayDurationDays());
+                        LocalDate rIn = null;
+                        LocalDate rOut = null;
+                        try {
+                            if (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty())
+                                rIn = LocalDate.parse(r.getCheckInDate());
+                            if (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty())
+                                rOut = LocalDate.parse(r.getCheckOutDate());
+                        } catch (Exception ignored) {}
+                        if (rIn == null) rIn = LocalDate.now();
+                        if (rOut == null) rOut = rIn.plusDays(r.getStayDurationDays());
                         if (!(rOut.isBefore(checkIn) || rIn.isAfter(checkOut))) {
                             isAvailable = false;
                             break;
@@ -633,16 +649,23 @@ public class BookingControl {
             }
 
             
-            // 3. Check FrontDesk Reservations (Checked-In guests)
+            // 3. Check FrontDesk Reservations — use actual dates (matches FrontDeskControl logic)
             if (isAvailable) {
                 java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
                 while (it.hasNext()) {
                     entity.Reservation r = it.next();
                     if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
-                        LocalDate rIn = LocalDate.now(); // System assumes current active reservations start from 'today' for overlap logic
-                        LocalDate rOut = rIn.plusDays(r.getStayDurationDays());
-                        
-                        // Overlap check (Must match FrontDeskControl logic exactly)
+                        LocalDate rIn = null;
+                        LocalDate rOut = null;
+                        try {
+                            if (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty())
+                                rIn = LocalDate.parse(r.getCheckInDate());
+                            if (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty())
+                                rOut = LocalDate.parse(r.getCheckOutDate());
+                        } catch (Exception ignored) {}
+                        if (rIn == null) rIn = LocalDate.now();
+                        if (rOut == null) rOut = rIn.plusDays(r.getStayDurationDays());
+
                         boolean overlaps = !(rOut.isBefore(checkIn) || rIn.isAfter(checkOut));
                         if (overlaps) {
                             isAvailable = false;
