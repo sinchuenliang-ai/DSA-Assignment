@@ -13,7 +13,6 @@ import entity.Staff;
 import entity.Transaction;
 import entity.Notification;
 
-
 public class LoyaltyControl {
     // Data structures
     private ListInterface<Member> memberList;
@@ -31,8 +30,6 @@ public class LoyaltyControl {
     private NotificationService notificationService;
     private ReportService reportService;
 
-    
-    // Default constructor - initializes all data structures and services
     public LoyaltyControl() {
         ui = new LoyaltyUI();
         
@@ -58,9 +55,7 @@ public class LoyaltyControl {
         FileHandler.initializeLoyaltyDataIfEmpty(memberList, transactionQueue, notificationList);
     }
 
-    /**
-     * Runs the loyalty service main menu
-     */
+    //main menu
     public void runService() {
         int choice;
         do {
@@ -292,58 +287,117 @@ public class LoyaltyControl {
             choice = ui.getRedemptionManagementChoice();
             switch (choice) {
                 case 0 -> {}
-                case 1 -> {
+                
+                case 1 -> {  // Process Redemption
                     if (current.getPoints() < 100) {
-                        ui.displayMessage("\n[ ERROR ] You need at least 100 points to redeem!");
+                        ui.displayMessage("\n[ERROR] You need at least 100 points to redeem!");
                         ui.displayMessage("Current points: " + current.getPoints());
                         break;
                     }
+                    
                     ui.displayRedemptionOptions(current);
                     int option = ui.getIntInput();
                     int points = 0;
                     String type = "";
+                    
                     switch (option) {
-                        case 1: points = 2000; type = "Room Upgrade"; break;
-                        case 2: points = 1000; type = "Room Discount"; break;
-                        case 3: points = 3000; type = "Spa Treatment"; break;
-                        case 4: points = 2500; type = "Gift Voucher"; break;
-                        case 5: 
+                        case 1 -> { points = 2000; type = "Room Upgrade"; }
+                        case 2 -> { points = 1000; type = "Room Discount"; }
+                        case 3 -> { points = 3000; type = "Spa Treatment"; }
+                        case 4 -> { points = 2500; type = "Gift Voucher"; }
+                        case 5 -> {
                             points = ui.inputPointsToRedeem();
                             type = ui.inputRedemptionType();
-                            break;
-                        default: ui.displayMessage("Invalid option!");
+                        }
+                        default -> {
+                            ui.displayMessage("Invalid option!");
+                            continue;
+                        }
                     }
-                    if (points > 0) {
+                    
+                    if (points > 0 && !type.isEmpty()) {
                         double discount = redemptionService.processRedemption(current, points, type);
                         if (discount > 0) {
                             ui.displayMessage("\n+================================================+");
-                            ui.displayMessage("|  [ SUCCESS ] Redemption Successful!              |");
+                            ui.displayMessage("|  ✅ Redemption Successful!                      |");
                             ui.displayMessage("+================================================+");
-                            ui.displayMessage("  Savings: RM " + String.format("%.2f", discount));
-                            ui.displayMessage("  Remaining points: " + current.getPoints());
+                            ui.displayMessage("  Savings      : RM " + String.format("%.2f", discount));
+                            ui.displayMessage("  Points Used  : " + points);
+                            ui.displayMessage("  Remaining    : " + current.getPoints());
+                            ui.displayMessage("  💾 Saved in stack for undo.");
                             saveAllData();
                         } else {
-                            ui.displayMessage("\n[ ERROR ] Redemption failed!");
+                            ui.displayMessage("\n[ERROR] Redemption failed!");
                             ui.displayMessage("  Possible reasons:");
-                            ui.displayMessage("  - Not enough points");
-                            ui.displayMessage("  - Exceeded tier limit");
-                            ui.displayMessage("  - Invalid redemption amount");
+                            ui.displayMessage("  • Not enough points");
+                            ui.displayMessage("  • Exceeded tier limit");
+                            ui.displayMessage("  • Invalid redemption amount");
                         }
                     }
                 }
-                case 2 -> {
+                
+                case 2 -> {  // View Redemption History
                     String history = redemptionService.getRedemptionHistory(current.getMemberId());
                     ui.displayMessage(history);
                 }
+                
                 case 3 -> ui.displayRedemptionRates();
+                
                 case 4 -> ui.displayRedemptionEligibility(current);
+                
+                case 5 -> {  // 🔄 Undo Last Redemption
+                    handleUndoRedemption(current);
+                }
+                
+                case 6 -> {  // 📊 View Undo Stack
+                    String history = redemptionService.getUndoHistory();
+                    ui.displayUndoHistory(history);
+                }
+                
                 default -> ui.displayInvalidChoiceMessage();
             }
         } while (choice != 0);
     }
 
     /**
-     * Handles notification management (member view)
+     Handle undo redemption with confirmation
+     */
+    private void handleUndoRedemption(Member current) {
+        // Get the last redemption without removing it
+        Transaction lastRedemption = redemptionService.getLastRedemption();
+        
+        if (lastRedemption == null) {
+            ui.displayMessage("\n[INFO] No redemptions to undo.");
+            return;
+        }
+        
+        // Confirm with user
+        if (!ui.confirmUndo(lastRedemption)) {
+            ui.displayMessage("\n[System] Undo cancelled.");
+            return;
+        }
+        
+        // Perform undo
+        boolean success = redemptionService.undoRedemption();
+        
+        if (success) {
+            // Refresh member data
+            Member updatedMember = memberService.findMemberById(current.getMemberId());
+            if (updatedMember != null) {
+                ui.setCurrentMember(updatedMember);
+                ui.displayUndoResult(true, lastRedemption, updatedMember);
+            } else {
+                ui.displayMessage("[ERROR] Could not refresh member data.");
+            }
+        } else {
+            ui.displayUndoResult(false, null, null);
+        }
+        
+        saveAllData();
+    }
+
+    /**
+      Handles notification management (member view)
      */
     private void handleNotificationManagement() {
         if (!ui.isMemberAuthenticated()) {
@@ -463,6 +517,9 @@ public class LoyaltyControl {
     // PUBLIC METHODS FOR EXTERNAL INTEGRATION
     // =========================================================================
 
+    /**
+     * Finds a member by email or phone
+     */
     public Member findMemberByEmailOrPhone(String email, String phone) {
         if (memberList == null) return null;
         for (int i = 1; i <= memberList.getNumberOfEntries(); i++) {
@@ -482,8 +539,7 @@ public class LoyaltyControl {
     }
 
     /**
-     * Finds a loyalty member by name (case-insensitive, partial match).
-     * Used by check-out flow which only has guest name available.
+     * Finds a loyalty member by name (case-insensitive, partial match)
      */
     public Member findMemberByName(String name) {
         if (memberList == null || name == null || name.trim().isEmpty()) return null;
@@ -497,6 +553,9 @@ public class LoyaltyControl {
         return null;
     }
 
+    /**
+     * Rewards points for a stay
+     */
     public int rewardPointsForStay(Member member, double amountSpent, String bookingId) {
         if (member == null || pointsService == null) return 0;
         int points = pointsService.earnPoints(member, amountSpent, bookingId);
@@ -504,6 +563,9 @@ public class LoyaltyControl {
         return points;
     }
 
+    /**
+     * Registers a new member
+     */
     public Member registerNewMember(String name, String email, String phone, String dob) {
         if (memberService == null) return null;
         
@@ -532,5 +594,26 @@ public class LoyaltyControl {
             return newMember;
         }
         return null;
+    }
+
+    /**
+     * Gets redemption stack size
+     */
+    public int getRedemptionStackSize() {
+        return redemptionService.getRedemptionStackSize();
+    }
+
+    /**
+     * Undoes the last redemption
+     */
+    public boolean undoRedemption() {
+        return redemptionService.undoRedemption();
+    }
+
+    /**
+     * Processes a redemption
+     */
+    public double processRedemption(Member member, int points, String type) {
+        return redemptionService.processRedemption(member, points, type);
     }
 }
