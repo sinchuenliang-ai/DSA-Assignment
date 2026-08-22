@@ -134,12 +134,37 @@ public class WalkInRegistrationUI {
 
         if (roomTypePreference == null) {
             System.out.println("\nSelect Preferred Room Type:");
-            System.out.println("  [1] Standard Single      ($120.00 / night)");
-            System.out.println("  [2] Standard Double      ($150.00 / night)");
-            System.out.println("  [3] Deluxe Suite         ($250.00 / night)");
-            System.out.println("  [4] Executive Suite      ($500.00 / night)");
-            System.out.println("  [5] Presidential Suite   ($1200.00 / night)");
-            typeChoice = readIntInput("Choice (1-5): ", 1, 5);
+            boolean opt1 = bookingControl.isRoomTypeAvailableForStay("Standard Single", checkInDate, checkOutDate);
+            boolean opt2 = bookingControl.isRoomTypeAvailableForStay("Standard Double", checkInDate, checkOutDate);
+            boolean opt3 = bookingControl.isRoomTypeAvailableForStay("Deluxe Suite", checkInDate, checkOutDate);
+            boolean opt4 = bookingControl.isRoomTypeAvailableForStay("Executive Suite", checkInDate, checkOutDate);
+            boolean opt5 = bookingControl.isRoomTypeAvailableForStay("Presidential Suite", checkInDate, checkOutDate);
+
+            if (opt1) System.out.println("  [1] Standard Single      ($120.00 / night)");
+            if (opt2) System.out.println("  [2] Standard Double      ($150.00 / night)");
+            if (opt3) System.out.println("  [3] Deluxe Suite         ($250.00 / night)");
+            if (opt4) System.out.println("  [4] Executive Suite      ($500.00 / night)");
+            if (opt5) System.out.println("  [5] Presidential Suite   ($1200.00 / night)");
+
+            java.util.List<Integer> validChoices = new java.util.ArrayList<>();
+            if (opt1) validChoices.add(1);
+            if (opt2) validChoices.add(2);
+            if (opt3) validChoices.add(3);
+            if (opt4) validChoices.add(4);
+            if (opt5) validChoices.add(5);
+
+            if (validChoices.isEmpty()) {
+                System.out.println("  [!] Error: No room types available for selection.");
+                return;
+            }
+
+            while (true) {
+                typeChoice = readIntInput("Choice (" + validChoices.toString().replace("[", "").replace("]", "") + "): ", 1, 5);
+                if (validChoices.contains(typeChoice)) {
+                    break;
+                }
+                System.out.println("  [!] Invalid choice. Please select from the available options.");
+            }
 
             roomTypePreference = switch (typeChoice) {
                 case 2 -> "Standard Double";
