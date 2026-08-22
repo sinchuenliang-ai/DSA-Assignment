@@ -3,7 +3,6 @@ package boundary;
 import entity.Member;
 import entity.Staff;
 import entity.Transaction;
-import adt.ListInterface;
 
 import java.util.Scanner;
 
@@ -204,15 +203,14 @@ public class LoyaltyUI {
         
         System.out.println("\n[+] MAIN MENU");
         System.out.println("============");
-        System.out.println("1. Register New Member");
-        System.out.println("2. Member Login");
-        System.out.println("3. Staff Login");
-        System.out.println("4. Member Management (Member View)");
-        System.out.println("5. Points Management (Member View)");
-        System.out.println("6. Redemption Management (Member View)");
-        System.out.println("7. Notification Management (Member View)");
-        System.out.println("8. View Personalized Promotion (Member View)");
-        System.out.println("9. Reports (Staff Only)");
+        System.out.println("1. Member Login");
+        System.out.println("2. Staff Login");
+        System.out.println("3. Member Management (Member View)");
+        System.out.println("4. Points Management (Member View)");
+        System.out.println("5. Redemption Management (Member View)");
+        System.out.println("6. Notification Management (Member View)");
+        System.out.println("7. View Personalized Promotion (Member View)");
+        System.out.println("8. Reports (Staff Only)");
         System.out.println("0. Logout & Exit");
         System.out.print("\nEnter choice: ");
         return getIntInput();
@@ -327,7 +325,7 @@ public class LoyaltyUI {
     public void displayUndoResult(boolean success, Transaction undone, Member member) {
         if (success && undone != null && member != null) {
             System.out.println("\n+================================================+");
-            System.out.println("|  ✅ SUCCESS! Redemption Undone!                |");
+            System.out.println("|  SUCCESS! Redemption Undone!                |");
             System.out.println("+================================================+");
             System.out.printf("  Points Restored : +%d pts\n", undone.getPoints());
             System.out.printf("  New Balance     : %d pts\n", member.getPoints());
@@ -336,7 +334,7 @@ public class LoyaltyUI {
             System.out.println("+================================================+");
         } else {
             System.out.println("\n+================================================+");
-            System.out.println("|  ❌ Cannot undo redemption.                    |");
+            System.out.println("|  Cannot undo redemption.                    |");
             System.out.println("+================================================+");
             System.out.println("  Possible reasons:");
             System.out.println("  • No redemptions to undo");
@@ -400,7 +398,7 @@ public class LoyaltyUI {
             System.out.println("|  Tier: " + member.getTier());
             System.out.println("|  Points Lost: " + member.getPoints());
             System.out.println("+================================================+");
-            System.out.println("\nWe're sorry to see you go. Your account has been");
+            System.out.println("\nYour account has been");
             System.out.println("permanently deleted from our system.");
         } else {
             System.out.println("\n+================================================+");
