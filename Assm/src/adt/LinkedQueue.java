@@ -8,7 +8,7 @@ package adt;
  * Custom Queue ADT implemented using a Singly Linked List with head (firstNode)
  * and tail (lastNode) references.
  *
- * @author User
+ * @author Sin Chuen Liang
  * @param <T> Generic element type stored in the queue
  */
 public class LinkedQueue<T> implements QueueInterface<T> {
