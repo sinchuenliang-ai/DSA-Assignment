@@ -2,14 +2,21 @@ package boundary;
 
 import entity.Member;
 import entity.Staff;
+import entity.Transaction;
 import adt.ListInterface;
 
 import java.util.Scanner;
 
+/**
+ * LoyaltyUI - Boundary class for Loyalty & Rewards System
+ * Handles all user interface interactions
+ * 
+ * @author TARUMT Resorts Team
+ */
 public class LoyaltyUI {
     private Scanner scanner;
-    private Staff currentStaff;  // Track authenticated staff
-    private Member currentMember; // Track authenticated member
+    private Staff currentStaff;
+    private Member currentMember;
 
     public LoyaltyUI() {
         scanner = new Scanner(System.in);
@@ -228,6 +235,127 @@ public class LoyaltyUI {
     }
 
     /**
+     * Gets points management menu choice
+     */
+    public int getPointsManagementChoice() {
+        System.out.println("\n--- POINTS MANAGEMENT ---");
+        System.out.println("1. View Points Balance");
+        System.out.println("2. View Points History");
+        System.out.println("3. Check Points Expiry");
+        System.out.println("4. View Tier Progress");
+        System.out.println("0. Back");
+        System.out.print("Enter choice: ");
+        return getIntInput();
+    }
+
+    /**
+     * Gets redemption management menu choice with UNDO options
+     */
+    public int getRedemptionManagementChoice() {
+        System.out.println("\n--- REDEMPTION MANAGEMENT ---");
+        System.out.println("1. Process Redemption");
+        System.out.println("2. View Redemption History");
+        System.out.println("3. Display Redemption Rates");
+        System.out.println("4. Check Redemption Eligibility");
+        System.out.println("5. Undo Last Redemption");
+        System.out.println("6. View Undo Stack");
+        System.out.println("0. Back");
+        System.out.print("Enter choice: ");
+        return getIntInput();
+    }
+
+    /**
+     * Gets notification management menu choice
+     */
+    public int getNotificationManagementChoice() {
+        System.out.println("\n--- NOTIFICATION MANAGEMENT ---");
+        System.out.println("1. View My Notifications");
+        System.out.println("2. Mark Notification as Read");
+        System.out.println("3. Dismiss Notification");
+        System.out.println("4. Check Expiring Points Alerts");
+        System.out.println("0. Back");
+        System.out.print("Enter choice: ");
+        return getIntInput();
+    }
+
+    /**
+     * Gets report choice
+     */
+    public int getReportChoice() {
+        System.out.println("\n--- REPORTS (Staff Only) ---");
+        System.out.println("1. Member Report");
+        System.out.println("2. Transaction Report");
+        System.out.println("3. Tier Distribution");
+        System.out.println("4. Points Summary");
+        System.out.println("5. Redemption Report");
+        System.out.println("6. Tier Progression Report");
+        System.out.println("0. Back");
+        System.out.print("Enter choice: ");
+        return getIntInput();
+    }
+
+    /**
+     * Display undo confirmation with last redemption details
+     */
+    public boolean confirmUndo(Transaction lastRedemption) {
+        System.out.println("\n🔄 UNDO LAST REDEMPTION");
+        System.out.println("================================================");
+        System.out.println("Last Redemption Details:");
+        System.out.println("-----------------------------------------------");
+        
+        if (lastRedemption == null) {
+            System.out.println("No redemption available to undo.");
+            return false;
+        }
+        
+        System.out.println("Transaction ID   : " + lastRedemption.getTransactionId());
+        System.out.println("Member ID        : " + lastRedemption.getMemberId());
+        System.out.println("Points           : " + lastRedemption.getPoints());
+        System.out.println("Type             : " + lastRedemption.getType());
+        System.out.println("Description      : " + lastRedemption.getDescription());
+        System.out.println("Timestamp        : " + lastRedemption.getTimestamp());
+        System.out.println("-----------------------------------------------");
+        
+        System.out.print("\n⚠️ Are you sure you want to undo this redemption? (y/n): ");
+        String response = scanner.nextLine().trim().toLowerCase();
+        return response.equals("y") || response.equals("yes");
+    }
+
+    /**
+     * Display undo result
+     */
+    public void displayUndoResult(boolean success, Transaction undone, Member member) {
+        if (success && undone != null && member != null) {
+            System.out.println("\n+================================================+");
+            System.out.println("|  ✅ SUCCESS! Redemption Undone!                |");
+            System.out.println("+================================================+");
+            System.out.printf("  Points Restored : +%d pts\n", undone.getPoints());
+            System.out.printf("  New Balance     : %d pts\n", member.getPoints());
+            System.out.println("  Redemption      : " + undone.getDescription());
+            System.out.println("  📧 Notification sent to member.");
+            System.out.println("+================================================+");
+        } else {
+            System.out.println("\n+================================================+");
+            System.out.println("|  ❌ Cannot undo redemption.                    |");
+            System.out.println("+================================================+");
+            System.out.println("  Possible reasons:");
+            System.out.println("  • No redemptions to undo");
+            System.out.println("  • Member not found");
+            System.out.println("  • System error");
+            System.out.println("+================================================+");
+        }
+    }
+
+    /**
+     * Display undo stack history
+     */
+    public void displayUndoHistory(String history) {
+        System.out.println(history);
+        System.out.println("\nPress Enter to continue...");
+        scanner.nextLine();
+    }
+
+    /**
      * Confirms account deletion with warning
      */
     public boolean confirmAccountDeletion(Member member) {
@@ -283,72 +411,8 @@ public class LoyaltyUI {
     }
 
     /**
-     * Gets points management menu choice
+     * Displays points balance
      */
-    public int getPointsManagementChoice() {
-        System.out.println("\n--- POINTS MANAGEMENT ---");
-        System.out.println("1. View Points Balance");
-        System.out.println("2. View Points History");
-        System.out.println("3. Check Points Expiry");
-        System.out.println("4. View Tier Progress");
-        System.out.println("0. Back");
-        System.out.print("Enter choice: ");
-        return getIntInput();
-    }
-
-    /**
-     * Gets redemption management menu choice
-     */
-    public int getRedemptionManagementChoice() {
-        System.out.println("\n--- REDEMPTION MANAGEMENT ---");
-        System.out.println("1. Process Redemption");
-        System.out.println("2. View Redemption History");
-        System.out.println("3. Display Redemption Rates");
-        System.out.println("4. Check Redemption Eligibility");
-        System.out.println("0. Back");
-        System.out.print("Enter choice: ");
-        return getIntInput();
-    }
-
-    /**
-     * Gets notification management menu choice
-     */
-    public int getNotificationManagementChoice() {
-        System.out.println("\n--- NOTIFICATION MANAGEMENT ---");
-        System.out.println("1. View My Notifications");
-        System.out.println("2. Mark Notification as Read");
-        System.out.println("3. Dismiss Notification");
-        System.out.println("4. Check Expiring Points Alerts");
-        System.out.println("0. Back");
-        System.out.print("Enter choice: ");
-        return getIntInput();
-    }
-
-    /**
-     * Gets report choice
-     */
-    public int getReportChoice() {
-        System.out.println("\n--- REPORTS (Staff Only) ---");
-        System.out.println("1. Member Report");
-        System.out.println("2. Transaction Report");
-        System.out.println("3. Tier Distribution");
-        System.out.println("4. Points Summary");
-        System.out.println("5. Redemption Report");
-        System.out.println("6. Tier Progression Report");
-        System.out.println("0. Back");
-        System.out.print("Enter choice: ");
-        return getIntInput();
-    }
-
-    // =========================================================================
-    // INPUT METHODS
-    // =========================================================================
-
-    public double inputAmountSpent() {
-        System.out.print("Enter amount spent (RM): ");
-        return getDoubleInput();
-    }
-
     public void displayPointsBalance(Member member) {
         System.out.println("\n[+] POINTS BALANCE");
         System.out.println("=================");
@@ -394,6 +458,9 @@ public class LoyaltyUI {
         return java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), expiryDate);
     }
 
+    /**
+     * Displays tier progress
+     */
     public void displayTierProgress(Member member) {
         System.out.println("\n[+] TIER PROGRESSION");
         System.out.println("===================");
@@ -466,11 +533,9 @@ public class LoyaltyUI {
         return Math.min(100, (int) ((double) progress / needed * 100));
     }
 
-    public int inputPointsToRedeem() {
-        System.out.print("Enter points to redeem: ");
-        return getIntInput();
-    }
-
+    /**
+     * Displays redemption options
+     */
     public void displayRedemptionOptions(Member member) {
         System.out.println("\n[+] REDEMPTION OPTIONS");
         System.out.println("====================");
@@ -497,6 +562,9 @@ public class LoyaltyUI {
         }
     }
 
+    /**
+     * Displays redemption rates
+     */
     public void displayRedemptionRates() {
         System.out.println("\n[+] REDEMPTION RATES");
         System.out.println("==================");
@@ -515,6 +583,9 @@ public class LoyaltyUI {
         System.out.println("  [*] Gift Voucher (2,500 pts)");
     }
 
+    /**
+     * Displays redemption eligibility
+     */
     public void displayRedemptionEligibility(Member member) {
         System.out.println("\n[+] REDEMPTION ELIGIBILITY");
         System.out.println("========================");
@@ -534,29 +605,9 @@ public class LoyaltyUI {
         }
     }
 
-    public void displayNotifications(String notifications, Member member) {
-        System.out.println("\n[+] NOTIFICATIONS");
-        System.out.println("================");
-        System.out.println("Member: " + member.getName() + " (" + member.getMemberId() + ")");
-        System.out.println(notifications);
-    }
-
-    public void displayAllNotifications(String notifications) {
-        System.out.println("\n[+] ALL NOTIFICATIONS");
-        System.out.println("====================");
-        System.out.println(notifications);
-    }
-
-    public void displayReport(String report) {
-        System.out.println("\n" + report);
-        System.out.println("\nPress Enter to continue...");
-        scanner.nextLine();
-    }
-
-    public void displayPersonalizedPromotion(String promotion) {
-        System.out.println("\n" + promotion);
-    }
-
+    /**
+     * Displays tier benefits
+     */
     public void displayTierBenefits() {
         System.out.println("\n[+] TIER BENEFITS");
         System.out.println("================");
@@ -585,6 +636,105 @@ public class LoyaltyUI {
         System.out.println("  [*] Guaranteed suite upgrades");
         System.out.println("  [*] Personal concierge");
         System.out.println("  [*] VIP event invitations");
+    }
+
+    /**
+     * Displays notifications
+     */
+    public void displayNotifications(String notifications, Member member) {
+        System.out.println("\n[+] NOTIFICATIONS");
+        System.out.println("================");
+        System.out.println("Member: " + member.getName() + " (" + member.getMemberId() + ")");
+        System.out.println(notifications);
+    }
+
+    /**
+     * Displays all notifications
+     */
+    public void displayAllNotifications(String notifications) {
+        System.out.println("\n[+] ALL NOTIFICATIONS");
+        System.out.println("====================");
+        System.out.println(notifications);
+    }
+
+    /**
+     * Displays personalized promotion
+     */
+    public void displayPersonalizedPromotion(String promotion) {
+        System.out.println("\n" + promotion);
+    }
+
+    /**
+     * Displays report
+     */
+    public void displayReport(String report) {
+        System.out.println("\n" + report);
+        System.out.println("\nPress Enter to continue...");
+        scanner.nextLine();
+    }
+
+    /**
+     * Displays access denied message
+     */
+    public void displayAccessDeniedMessage() {
+        System.out.println("\n+================================================+");
+        System.out.println("|  [ ACCESS DENIED ]                              |");
+        System.out.println("|  Staff authentication required to view reports. |");
+        System.out.println("|  Please login using option 3.                  |");
+        System.out.println("+================================================+");
+    }
+
+    /**
+     * Displays member required message
+     */
+    public void displayMemberRequiredMessage() {
+        System.out.println("\n+================================================+");
+        System.out.println("|  [ ACCESS DENIED ]                              |");
+        System.out.println("|  Member login required to access this feature. |");
+        System.out.println("|  Please login using option 2.                  |");
+        System.out.println("+================================================+");
+    }
+
+    /**
+     * Displays logout message
+     */
+    public void displayLogoutMessage() {
+        System.out.println("\n+================================================+");
+        System.out.println("|  [ SUCCESS ] Logged out successfully!          |");
+        System.out.println("+================================================+");
+    }
+
+    /**
+     * Displays exit message
+     */
+    public void displayExitMessage() {
+        System.out.println("\n+================================================+");
+        System.out.println("|  [ SUCCESS ] Thank you for using               |");
+        System.out.println("|  TARUMT Resorts Loyalty Program!               |");
+        System.out.println("|                                                |");
+        System.out.println("|  Your rewards make every stay more valuable!   |");
+        System.out.println("+================================================+");
+        System.out.println("\nReturning to System Master Menu...");
+    }
+
+    /**
+     * Displays member details
+     */
+    public void displayMemberDetails(Member member) {
+        System.out.println(member.toDetailedString());
+    }
+
+    /**
+     * Input methods
+     */
+    public double inputAmountSpent() {
+        System.out.print("Enter amount spent (RM): ");
+        return getDoubleInput();
+    }
+
+    public int inputPointsToRedeem() {
+        System.out.print("Enter points to redeem: ");
+        return getIntInput();
     }
 
     public String inputMemberId(String prompt) {
@@ -629,12 +779,6 @@ public class LoyaltyUI {
         }
     }
 
-    private void clearScreen() {
-        for (int i = 0; i < 2; i++) {
-            System.out.println();
-        }
-    }
-
     public void displayMessage(String message) {
         System.out.println(message);
     }
@@ -643,48 +787,9 @@ public class LoyaltyUI {
         System.out.println("[X] Invalid choice! Please try again.");
     }
 
-    /**
-     * Displays exit message when user chooses to exit the loyalty program
-     */
-    public void displayExitMessage() {
-        System.out.println("\n+================================================+");
-        System.out.println("|  [ SUCCESS ] Thank you for using               |");
-        System.out.println("|  TARUMT Resorts Loyalty Program!               |");
-        System.out.println("|                                                |");
-        System.out.println("|  Your rewards make every stay more valuable!   |");
-        System.out.println("+================================================+");
-        System.out.println("\nReturning to System Master Menu...");
-    }
-
-    public void displayAccessDeniedMessage() {
-        System.out.println("\n+================================================+");
-        System.out.println("|  [ ACCESS DENIED ]                              |");
-        System.out.println("|  Staff authentication required to view reports. |");
-        System.out.println("|  Please login using option 3.                  |");
-        System.out.println("+================================================+");
-    }
-
-    public void displayMemberRequiredMessage() {
-        System.out.println("\n+================================================+");
-        System.out.println("|  [ ACCESS DENIED ]                              |");
-        System.out.println("|  Member login required to access this feature. |");
-        System.out.println("|  Please login using option 2.                  |");
-        System.out.println("+================================================+");
-    }
-
-    /**
-     * Displays member logout confirmation
-     */
-    public void displayLogoutMessage() {
-        System.out.println("\n+================================================+");
-        System.out.println("|  [ SUCCESS ] Logged out successfully!          |");
-        System.out.println("+================================================+");
-    }
-
-    /**
-     * Displays member details
-     */
-    public void displayMemberDetails(Member member) {
-        System.out.println(member.toDetailedString());
+    private void clearScreen() {
+        for (int i = 0; i < 2; i++) {
+            System.out.println();
+        }
     }
 }
