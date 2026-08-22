@@ -245,7 +245,11 @@ public class HouseKeepingUI {
                             break;
 
                         case "d":
-                            statusFilter = "Ready for Check-In";
+                            statusFilter = "ALL";
+
+                            System.out.println("\n===== ALL ROOM STATUS =====");
+                            manager.displayStatusHistory();
+
                             break;
 
                         case "e":
