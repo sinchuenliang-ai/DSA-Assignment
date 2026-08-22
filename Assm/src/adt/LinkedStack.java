@@ -1,3 +1,7 @@
+/**
+ *
+ * @author Chia Min Yi
+ */
 package adt;
 
 public class LinkedStack<T> implements StackInterface<T> {
