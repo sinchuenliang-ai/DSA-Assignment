@@ -51,7 +51,7 @@ public class HouseKeepingUI {
             System.out.println("4. Display Status History");
             System.out.println("5. Room Checked-In (Complete Cycle)");
             System.out.println("6. Generate Report");
-            System.out.println("7. Exit");
+            System.out.println("0. Exit");
             System.out.println("========================================");
             System.out.print("Enter your choice: ");
 
@@ -203,7 +203,7 @@ public class HouseKeepingUI {
             System.out.println("========================================");
             System.out.println("1. Housekeeping Status Report");
             System.out.println("2. Housekeeping Status Analysis Report");
-            System.out.println("3. Back");
+            System.out.println("0. Back");
             System.out.println("========================================");
             System.out.print("Enter your choice: ");
 
