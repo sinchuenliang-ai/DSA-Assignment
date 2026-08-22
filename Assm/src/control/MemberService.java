@@ -33,27 +33,6 @@ public class MemberService {
         return null;
     }
 
-    //get all member by formatted string
-    public String getAllMembers() {
-        if (memberList.isEmpty()) return "No members registered.";
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-10s %-20s %-10s %10s %10s %12s\n", 
-                "ID", "Name", "Tier", "Points", "Earned", "To Next"));
-        sb.append("------------------------------------------------------------\n");
-        for (int i = 1; i <= memberList.getNumberOfEntries(); i++) {
-            Member m = memberList.getEntry(i);
-            int toNext = getPointsToNextTier(m);
-            sb.append(String.format("%-10s %-20s %-10s %10d %10d %12d\n",
-                    m.getMemberId(),
-                    m.getName().length() > 20 ? m.getName().substring(0, 17) + "..." : m.getName(),
-                    m.getTier(),
-                    m.getPoints(),
-                    m.getTotalPointsEarned(),
-                    toNext));
-        }
-        return sb.toString();
-    }
-
     //search member by term
     public String searchMembers(String searchTerm) {
         ListInterface<Member> results = new LinkedList<>();
