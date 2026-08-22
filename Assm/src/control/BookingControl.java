@@ -145,6 +145,8 @@ public class BookingControl {
     /**
      * Assigns a room to the next guest in line for a specific room type and passes
      * it to Front Desk for Confirmation Number assignment.
+     * @param roomType
+     * @return 
      */
     public Booking assignRoomByRoomType(String roomType) {
         QueueInterface<Booking> targetQueue = getQueueByRoomType(roomType);
@@ -394,6 +396,8 @@ public class BookingControl {
 
     /**
      * Peeks at the next booking in queue without removing it.
+     * @param roomType
+     * @return 
      */
     public Booking peekNextInQueue(String roomType) {
         QueueInterface<Booking> queue = getQueueByRoomType(roomType);
@@ -413,6 +417,10 @@ public class BookingControl {
 
     /**
      * Displays available rooms filtered by type AND date range (for the Assign Room screen).
+     * @param roomType
+     * @param checkIn
+     * @param checkOut
+     * @return 
      */
     public boolean displayAvailableRoomsForType(String roomType, LocalDate checkIn, LocalDate checkOut) {
         System.out.println("\n==================================================================================");
@@ -433,71 +441,96 @@ public class BookingControl {
         utility.FileHandler.loadReservations(resTree);
 
         int count = 0;
+        java.util.List<String> notCleanRooms = new java.util.ArrayList<>();
+
         for (Room room : allRooms) {
             // Filter to requested room type only
             if (!room.getRoomType().equalsIgnoreCase(roomType)) continue;
 
-            boolean isAvailable = true;
+            boolean isAvailableForDates = true;
 
-            // Check Housekeeping Status — always reflects current cleanliness state
-            if (activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
-                entity.HousekeepingTask t = activeTasks.get(room.getRoomNumber().toUpperCase());
-                if (t != null && !t.getStatus().equalsIgnoreCase("Ready for Check-In")) {
-                    isAvailable = false;
-                }
-            }
+            // Check FrontDesk Reservations — use actual dates
+            java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
+            while (it.hasNext()) {
+                entity.Reservation r = it.next();
+                if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
+                    LocalDate rIn = null;
+                    LocalDate rOut = null;
+                    try {
+                        if (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty())
+                            rIn = LocalDate.parse(r.getCheckInDate());
+                        if (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty())
+                            rOut = LocalDate.parse(r.getCheckOutDate());
+                    } catch (Exception ignored) {}
+                    if (rIn == null) rIn = LocalDate.now();
+                    if (rOut == null) rOut = rIn.plusDays(r.getStayDurationDays());
 
-            if (isAvailable) {
-                java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
-                while (it.hasNext()) {
-                    entity.Reservation r = it.next();
-                    if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
-                        LocalDate rIn = null;
-                        LocalDate rOut = null;
-                        try {
-                            if (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty())
-                                rIn = LocalDate.parse(r.getCheckInDate());
-                            if (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty())
-                                rOut = LocalDate.parse(r.getCheckOutDate());
-                        } catch (Exception ignored) {}
-                        if (rIn == null) rIn = LocalDate.now();
-                        if (rOut == null) rOut = rIn.plusDays(r.getStayDurationDays());
-                        if (!(rOut.isBefore(checkIn) || rIn.isAfter(checkOut))) {
-                            isAvailable = false;
-                            break;
-                        }
+                    boolean overlaps = !(rOut.isBefore(checkIn) || rIn.isAfter(checkOut));
+                    if (overlaps) {
+                        isAvailableForDates = false;
+                        break;
                     }
                 }
             }
 
-            QueueInterface<Booking> temp = new LinkedQueue<>();
-            while (!allBookings.isEmpty()) {
-                Booking b = allBookings.dequeue();
-                temp.enqueue(b);
-                if (isAvailable && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
-                    if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
-                        try {
-                            LocalDate bIn = LocalDate.parse(b.getCheckInDate());
-                            LocalDate bOut = LocalDate.parse(b.getCheckOutDate());
-                            if (!(bOut.isBefore(checkIn) || bIn.isAfter(checkOut))) {
-                                isAvailable = false;
+            // Check existing Waiting/Pending Bookings overlap (only ones with assigned rooms)
+            if (isAvailableForDates) {
+                QueueInterface<Booking> temp = new LinkedQueue<>();
+                while (!allBookings.isEmpty()) {
+                    Booking b = allBookings.dequeue();
+                    temp.enqueue(b);
+                    if (isAvailableForDates && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
+                        if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
+                            try {
+                                LocalDate bIn = LocalDate.parse(b.getCheckInDate());
+                                LocalDate bOut = LocalDate.parse(b.getCheckOutDate());
+                                if (!(bOut.isBefore(checkIn) || bIn.isAfter(checkOut))) {
+                                    isAvailableForDates = false;
+                                }
+                            } catch (Exception ignored) {
+                                isAvailableForDates = false;
                             }
-                        } catch (Exception ignored) {
-                            isAvailable = false;
                         }
                     }
                 }
+                while (!temp.isEmpty()) allBookings.enqueue(temp.dequeue());
             }
-            while (!temp.isEmpty()) allBookings.enqueue(temp.dequeue());
 
-            if (isAvailable) {
-                System.out.printf(" %-15s | %-25s | %-15s\n", room.getRoomNumber(), room.getRoomType(), "AVAILABLE");
-                count++;
+            if (isAvailableForDates) {
+                // Now check Housekeeping Status
+                boolean isClean = true;
+                String hkStatus = "Dirty";
+                if (activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
+                    entity.HousekeepingTask t = activeTasks.get(room.getRoomNumber().toUpperCase());
+                    if (t != null) {
+                        hkStatus = t.getStatus();
+                        if (!t.getStatus().equalsIgnoreCase("Ready for Check-In")) {
+                            isClean = false;
+                        }
+                    } else {
+                        isClean = false;
+                    }
+                }
+
+                if (isClean) {
+                    System.out.printf(" %-15s | %-25s | %-15s\n", room.getRoomNumber(), room.getRoomType(), "AVAILABLE");
+                    count++;
+                } else {
+                    notCleanRooms.add(room.getRoomNumber() + " (" + hkStatus + ")");
+                }
             }
         }
 
         System.out.println("==================================================================================");
         System.out.println(" Total Available: " + count);
+        
+        if (!notCleanRooms.isEmpty()) {
+            System.out.println("\n  [ NOTE ] The following rooms are free for these dates but NOT CLEAN YET:");
+            for (String roomStr : notCleanRooms) {
+                System.out.println("   * Room " + roomStr);
+            }
+        }
+
         return count > 0;
     }
 
@@ -625,7 +658,7 @@ public class BookingControl {
         QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
         java.util.List<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
         
-        // 1. Integrate with HouseKeeping Module
+        // 1. Integrate with HouseKeeping Module (No housekeeping block for registration)
         java.util.Map<String, entity.HousekeepingTask> activeTasks = new java.util.HashMap<>();
         if (this.houseKeepingControl != null) {
             activeTasks = this.houseKeepingControl.getAllActiveTasksMap();
@@ -635,87 +668,253 @@ public class BookingControl {
         adt.TreeInterface<entity.Reservation> resTree = new adt.BinarySearchTreeADT<>();
         utility.FileHandler.loadReservations(resTree);
 
-        int availableCount = 0;
-        
+        // Count overlapping waiting bookings (Waiting status, room == null) for each room type
+        java.util.Map<String, Integer> waitingCountMap = new java.util.HashMap<>();
+        waitingCountMap.put("Standard Single", 0);
+        waitingCountMap.put("Standard Double", 0);
+        waitingCountMap.put("Deluxe Suite", 0);
+        waitingCountMap.put("Executive Suite", 0);
+        waitingCountMap.put("Presidential Suite", 0);
+
+        QueueInterface<Booking> tempBookings = new LinkedQueue<>();
+        while (!allBookings.isEmpty()) {
+            Booking b = allBookings.dequeue();
+            tempBookings.enqueue(b);
+
+            if (b.getRoom() == null && b.getBookingStatus() != null && b.getBookingStatus().equalsIgnoreCase("Waiting")) {
+                try {
+                    LocalDate bCheckIn = LocalDate.parse(b.getCheckInDate());
+                    LocalDate bCheckOut = LocalDate.parse(b.getCheckOutDate());
+                    boolean overlaps = !(bCheckOut.isBefore(checkIn) || bCheckIn.isAfter(checkOut));
+                    if (overlaps) {
+                        String type = b.getRequestedRoomType();
+                        if (type != null) {
+                            String matchedKey = null;
+                            for (String key : waitingCountMap.keySet()) {
+                                if (key.equalsIgnoreCase(type.trim()) || type.trim().toLowerCase().contains(key.toLowerCase())) {
+                                    matchedKey = key;
+                                    break;
+                                }
+                            }
+                            if (matchedKey != null) {
+                                waitingCountMap.put(matchedKey, waitingCountMap.get(matchedKey) + 1);
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        while (!tempBookings.isEmpty()) {
+            allBookings.enqueue(tempBookings.dequeue());
+        }
+
+        // Get physically available rooms (not reserved/occupied/assigned)
+        java.util.List<Room> physAvailableRooms = new java.util.ArrayList<>();
         for (Room room : allRooms) {
             boolean isAvailable = true;
             
-            // 2. Check Housekeeping Status — always reflects current cleanliness state
-            if (activeTasks.containsKey(room.getRoomNumber().toUpperCase())) {
-                entity.HousekeepingTask t = activeTasks.get(room.getRoomNumber().toUpperCase());
-                if (t != null && !t.getStatus().equalsIgnoreCase("Ready for Check-In")) {
-                    isAvailable = false;
-                }
-            }
+            // Check FrontDesk Reservations — use actual dates
+            java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
+            while (it.hasNext()) {
+                entity.Reservation r = it.next();
+                if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
+                    LocalDate rIn = null;
+                    LocalDate rOut = null;
+                    try {
+                        if (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty())
+                            rIn = LocalDate.parse(r.getCheckInDate());
+                        if (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty())
+                            rOut = LocalDate.parse(r.getCheckOutDate());
+                    } catch (Exception ignored) {}
+                    if (rIn == null) rIn = LocalDate.now();
+                    if (rOut == null) rOut = rIn.plusDays(r.getStayDurationDays());
 
-            
-            // 3. Check FrontDesk Reservations — use actual dates (matches FrontDeskControl logic)
-            if (isAvailable) {
-                java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
-                while (it.hasNext()) {
-                    entity.Reservation r = it.next();
-                    if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
-                        LocalDate rIn = null;
-                        LocalDate rOut = null;
-                        try {
-                            if (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty())
-                                rIn = LocalDate.parse(r.getCheckInDate());
-                            if (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty())
-                                rOut = LocalDate.parse(r.getCheckOutDate());
-                        } catch (Exception ignored) {}
-                        if (rIn == null) rIn = LocalDate.now();
-                        if (rOut == null) rOut = rIn.plusDays(r.getStayDurationDays());
-
-                        boolean overlaps = !(rOut.isBefore(checkIn) || rIn.isAfter(checkOut));
-                        if (overlaps) {
-                            isAvailable = false;
-                            break;
-                        }
+                    boolean overlaps = !(rOut.isBefore(checkIn) || rIn.isAfter(checkOut));
+                    if (overlaps) {
+                        isAvailable = false;
+                        break;
                     }
                 }
             }
 
-            // 4. Check existing Waiting/Pending Bookings overlap
-            QueueInterface<Booking> temp = new LinkedQueue<>();
-            while (!allBookings.isEmpty()) {
-                Booking b = allBookings.dequeue();
-                temp.enqueue(b);
-                
-                if (isAvailable && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
-                    if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
-                        try {
-                            LocalDate bCheckIn = LocalDate.parse(b.getCheckInDate());
-                            LocalDate bCheckOut = LocalDate.parse(b.getCheckOutDate());
-                            
-                            // Overlap check (Must match FrontDeskControl logic exactly)
-                            boolean overlaps = !(bCheckOut.isBefore(checkIn) || bCheckIn.isAfter(checkOut));
-                            if (overlaps) {
+            // Check existing Waiting/Pending Bookings overlap (only ones with assigned rooms)
+            if (isAvailable) {
+                QueueInterface<Booking> temp = new LinkedQueue<>();
+                while (!allBookings.isEmpty()) {
+                    Booking b = allBookings.dequeue();
+                    temp.enqueue(b);
+                    
+                    if (isAvailable && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
+                        if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
+                            try {
+                                LocalDate bCheckIn = LocalDate.parse(b.getCheckInDate());
+                                LocalDate bCheckOut = LocalDate.parse(b.getCheckOutDate());
+                                
+                                boolean overlaps = !(bCheckOut.isBefore(checkIn) || bCheckIn.isAfter(checkOut));
+                                if (overlaps) {
+                                    isAvailable = false;
+                                }
+                            } catch (Exception e) {
                                 isAvailable = false;
                             }
-                        } catch (Exception e) {
-                            isAvailable = false;
                         }
                     }
                 }
+                while (!temp.isEmpty()) {
+                    allBookings.enqueue(temp.dequeue());
+                }
             }
-            // Restore bookings
-            while (!temp.isEmpty()) {
-                allBookings.enqueue(temp.dequeue());
-            }
-            
+
             if (isAvailable) {
-                System.out.printf(" %-15s | %-25s | %-15s\n", room.getRoomNumber(), room.getRoomType(), "AVAILABLE");
-                availableCount++;
+                physAvailableRooms.add(room);
+            }
+        }
+
+        // Group physically available rooms by room type
+        java.util.Map<String, java.util.List<Room>> roomsByType = new java.util.HashMap<>();
+        roomsByType.put("Standard Single", new java.util.ArrayList<>());
+        roomsByType.put("Standard Double", new java.util.ArrayList<>());
+        roomsByType.put("Deluxe Suite", new java.util.ArrayList<>());
+        roomsByType.put("Executive Suite", new java.util.ArrayList<>());
+        roomsByType.put("Presidential Suite", new java.util.ArrayList<>());
+
+        for (Room r : physAvailableRooms) {
+            String type = r.getRoomType();
+            String matchedKey = null;
+            for (String key : roomsByType.keySet()) {
+                if (key.equalsIgnoreCase(type.trim()) || type.trim().toLowerCase().contains(key.toLowerCase())) {
+                    matchedKey = key;
+                    break;
+                }
+            }
+            if (matchedKey != null) {
+                roomsByType.get(matchedKey).add(r);
+            }
+        }
+
+        // Print rooms up to the net available count (physAvailable - waitingCount)
+        int totalAvailableCount = 0;
+        String[] typesOrder = {"Standard Single", "Standard Double", "Deluxe Suite", "Executive Suite", "Presidential Suite"};
+        for (String type : typesOrder) {
+            java.util.List<Room> typeRooms = roomsByType.get(type);
+            int waiting = waitingCountMap.get(type);
+            int net = typeRooms.size() - waiting;
+            if (net > 0) {
+                for (int i = 0; i < net && i < typeRooms.size(); i++) {
+                    Room room = typeRooms.get(i);
+                    System.out.printf(" %-15s | %-25s | %-15s\n", room.getRoomNumber(), room.getRoomType(), "AVAILABLE");
+                    totalAvailableCount++;
+                }
             }
         }
         
         System.out.println("==================================================================================");
-        System.out.println(" Total Available Rooms for Stay: " + availableCount);
+        System.out.println(" Total Available Rooms for Stay: " + totalAvailableCount);
         
-        return availableCount > 0;
+        return totalAvailableCount > 0;
     }
 
+
+    /**
+     * Checks if at least one room of the requested type is available for the stay dates.
+     */
+    public boolean isRoomTypeAvailableForStay(String roomType, LocalDate checkIn, LocalDate checkOut) {
+        java.util.List<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
+        QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
+        
+        adt.TreeInterface<entity.Reservation> resTree = new adt.BinarySearchTreeADT<>();
+        utility.FileHandler.loadReservations(resTree);
+
+        // Count overlapping waiting bookings (Waiting status, room == null) for this room type
+        int waitingCount = 0;
+        QueueInterface<Booking> tempBookings = new LinkedQueue<>();
+        while (!allBookings.isEmpty()) {
+            Booking b = allBookings.dequeue();
+            tempBookings.enqueue(b);
+
+            if (b.getRoom() == null && b.getBookingStatus() != null && b.getBookingStatus().equalsIgnoreCase("Waiting")) {
+                String type = b.getRequestedRoomType();
+                if (type != null && (type.equalsIgnoreCase(roomType.trim()) || type.trim().toLowerCase().contains(roomType.trim().toLowerCase()))) {
+                    try {
+                        LocalDate bCheckIn = LocalDate.parse(b.getCheckInDate());
+                        LocalDate bCheckOut = LocalDate.parse(b.getCheckOutDate());
+                        boolean overlaps = !(bCheckOut.isBefore(checkIn) || bCheckIn.isAfter(checkOut));
+                        if (overlaps) {
+                            waitingCount++;
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        while (!tempBookings.isEmpty()) {
+            allBookings.enqueue(tempBookings.dequeue());
+        }
+
+        // Get physically available rooms of this type
+        int physCount = 0;
+        for (Room room : allRooms) {
+            if (!room.getRoomType().equalsIgnoreCase(roomType) && !room.getRoomType().toLowerCase().contains(roomType.toLowerCase())) continue;
+
+            boolean isAvailable = true;
+
+            // Check FrontDesk Reservations
+            java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
+            while (it.hasNext()) {
+                entity.Reservation r = it.next();
+                if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
+                    LocalDate rIn = null;
+                    LocalDate rOut = null;
+                    try {
+                        if (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty())
+                            rIn = LocalDate.parse(r.getCheckInDate());
+                        if (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty())
+                            rOut = LocalDate.parse(r.getCheckOutDate());
+                    } catch (Exception ignored) {}
+                    if (rIn == null) rIn = LocalDate.now();
+                    if (rOut == null) rOut = rIn.plusDays(r.getStayDurationDays());
+
+                    boolean overlaps = !(rOut.isBefore(checkIn) || rIn.isAfter(checkOut));
+                    if (overlaps) {
+                        isAvailable = false;
+                        break;
+                    }
+                }
+            }
+
+            if (isAvailable) {
+                QueueInterface<Booking> temp = new LinkedQueue<>();
+                while (!allBookings.isEmpty()) {
+                    Booking b = allBookings.dequeue();
+                    temp.enqueue(b);
+                    if (isAvailable && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
+                        if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
+                            try {
+                                LocalDate bCheckIn = LocalDate.parse(b.getCheckInDate());
+                                LocalDate bCheckOut = LocalDate.parse(b.getCheckOutDate());
+                                boolean overlaps = !(bCheckOut.isBefore(checkIn) || bCheckIn.isAfter(checkOut));
+                                if (overlaps) {
+                                    isAvailable = false;
+                                }
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+                while (!temp.isEmpty()) {
+                    allBookings.enqueue(temp.dequeue());
+                }
+            }
+
+            if (isAvailable) {
+                physCount++; 
+            }
+        }
+
+        return (physCount - waitingCount) > 0;
+    }
+
+
     // =========================================================================
+
     // REPORT 1: Booking Analytics Report
     // =========================================================================
     public void generateBookingAnalyticsReport(String startDate, String endDate, String roomTypeFilter) {
