@@ -237,8 +237,6 @@ public class HouseKeepingControl {
         String[] displayedTaskIDs = new String[taskStack.size()];
         int displayedCount = 0;
 
-        System.out.println("\n===== CURRENT ROOM STATUS =====");
-
         while (!taskStack.isEmpty()) {
             HousekeepingTask task = taskStack.pop();
             boolean alreadyDisplayed = false;
