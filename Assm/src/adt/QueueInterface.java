@@ -6,7 +6,7 @@ package adt;
 
 /**
  *
- * @author User
+ * @author Sin Chuen Liang
  */
 public interface QueueInterface<T> {
     void enqueue(T newEntry);
