@@ -32,7 +32,7 @@ public class LoyaltyControl {
     private ReportService reportService;
 
     
-     // Default constructor - initializes all data structures and services
+    // Default constructor - initializes all data structures and services
     public LoyaltyControl() {
         ui = new LoyaltyUI();
         
@@ -66,14 +66,16 @@ public class LoyaltyControl {
         do {
             choice = ui.getMainMenuChoice();
             switch (choice) {
-                case 0 -> ui.displayExitMessage();
-                case 1 -> manageMembers();
-                case 2 -> managePoints();
-                case 3 -> manageRedemptions();
-                case 4 -> manageNotifications();
-                case 5 -> handleReportAccess();
-                case 6 -> viewPersonalizedPromotion();
-                case 7 -> handleStaffLoginLogout();
+                case 0 -> handleLogout();
+                case 1 -> handleMemberRegistration();
+                case 2 -> handleMemberLogin();
+                case 3 -> handleStaffLogin();
+                case 4 -> handleMemberManagement();
+                case 5 -> handlePointsManagement();
+                case 6 -> handleRedemptionManagement();
+                case 7 -> handleNotificationManagement();
+                case 8 -> handlePersonalizedPromotion();
+                case 9 -> handleReportAccess();
                 default -> ui.displayInvalidChoiceMessage();
             }
         } while (choice != 0);
@@ -81,27 +83,311 @@ public class LoyaltyControl {
     }
 
     /**
-     * Handles staff login/logout
+     * Handles member registration
      */
-    private void handleStaffLoginLogout() {
-        if (ui.isStaffAuthenticated()) {
-            // Logout
-            Staff staff = ui.getCurrentStaff();
-            ui.displayMessage("\n[ System ] Logging out staff: " + staff.getStaffName());
-            ui.setCurrentStaff(null);
-            ui.displayMessage("[ System ] Successfully logged out.");
-        } else {
-            // Login
-            String[] credentials = ui.getStaffLoginCredentials();
-            Staff authenticated = FileHandler.authenticateStaff(credentials[0], credentials[1]);
-            ui.displayStaffAuthResult(authenticated != null, authenticated);
-            if (authenticated != null) {
-                ui.setCurrentStaff(authenticated);
+    private void handleMemberRegistration() {
+        Member newMember = ui.getMemberRegistrationDetails();
+        
+        // Check if member with same email already exists
+        Member existing = findMemberByEmailOrPhone(newMember.getEmail(), null);
+        if (existing != null) {
+            ui.displayMessage("\n+================================================+");
+            ui.displayMessage("|  [ ERROR ] Member with this email already exists! |");
+            ui.displayMessage("|  Member ID: " + existing.getMemberId() + " |");
+            ui.displayMessage("+================================================+");
+            return;
+        }
+        
+        // Auto-generate member ID
+        int maxIdNum = 0;
+        for (int i = 1; i <= memberList.getNumberOfEntries(); i++) {
+            String mId = memberList.getEntry(i).getMemberId();
+            if (mId != null && mId.startsWith("M")) {
+                try {
+                    int num = Integer.parseInt(mId.substring(1));
+                    if (num > maxIdNum) maxIdNum = num;
+                } catch (NumberFormatException ignored) {}
             }
+        }
+        String nextMemberId = String.format("M%03d", maxIdNum + 1);
+        newMember.setMemberId(nextMemberId);
+        
+        boolean success = memberService.addMember(newMember);
+        ui.displayRegistrationResult(success, success ? newMember : null);
+        if (success) {
+            // Auto-login after registration
+            ui.setCurrentMember(newMember);
+            saveAllData();
         }
     }
 
-    
+    /**
+     * Handles member login
+     */
+    private void handleMemberLogin() {
+        if (ui.isMemberAuthenticated()) {
+            ui.displayMessage("\n[ System ] You are already logged in as: " + ui.getCurrentMember().getName());
+            return;
+        }
+        
+        String[] credentials = ui.getMemberLoginCredentials();
+        String memberId = credentials[0];
+        String email = credentials[1];
+        
+        Member member = memberService.findMemberById(memberId);
+        if (member != null && member.getEmail().equalsIgnoreCase(email)) {
+            ui.setCurrentMember(member);
+            ui.displayMemberAuthResult(true, member);
+        } else {
+            ui.displayMemberAuthResult(false, null);
+        }
+    }
+
+    /**
+     * Handles staff login
+     */
+    private void handleStaffLogin() {
+        if (ui.isStaffAuthenticated()) {
+            ui.displayMessage("\n[ System ] You are already logged in as staff: " + ui.getCurrentStaff().getStaffName());
+            return;
+        }
+        
+        String[] credentials = ui.getStaffLoginCredentials();
+        Staff authenticated = FileHandler.authenticateStaff(credentials[0], credentials[1]);
+        ui.displayStaffAuthResult(authenticated != null, authenticated);
+        if (authenticated != null) {
+            ui.setCurrentStaff(authenticated);
+        }
+    }
+
+    /**
+     * Handles logout
+     */
+    private void handleLogout() {
+        if (ui.isStaffAuthenticated()) {
+            ui.displayMessage("\n[ System ] Logging out staff: " + ui.getCurrentStaff().getStaffName());
+            ui.setCurrentStaff(null);
+        }
+        if (ui.isMemberAuthenticated()) {
+            ui.displayMessage("\n[ System ] Logging out member: " + ui.getCurrentMember().getName());
+            ui.setCurrentMember(null);
+        }
+        ui.displayLogoutMessage();
+        ui.displayExitMessage();
+    }
+
+    /**
+     * Handles member management (member view) with delete option
+     */
+    private void handleMemberManagement() {
+        if (!ui.isMemberAuthenticated()) {
+            ui.displayMemberRequiredMessage();
+            return;
+        }
+        
+        int choice;
+        Member current = ui.getCurrentMember();
+        do {
+            choice = ui.getMemberManagementChoice();
+            switch (choice) {
+                case 0 -> {}
+                case 1 -> ui.displayMemberDetails(current);
+                case 2 -> {
+                    ui.displayMessage("\nUpdating profile for: " + current.getName());
+                    String name = ui.inputString("New Name (Enter to skip): ");
+                    if (!name.isEmpty()) current.setName(name);
+                    String email = ui.inputString("New Email (Enter to skip): ");
+                    if (!email.isEmpty()) current.setEmail(email);
+                    String phone = ui.inputString("New Phone (Enter to skip): ");
+                    if (!phone.isEmpty()) current.setPhoneNumber(phone);
+                    String roomType = ui.inputString("Preferred Room Type (Enter to skip): ");
+                    if (!roomType.isEmpty()) current.setPreferredRoomType(roomType);
+                    ui.displayMessage("Profile updated!");
+                    saveAllData();
+                }
+                case 3 -> ui.displayPointsBalance(current);
+                case 4 -> ui.displayTierBenefits();
+                case 5 -> ui.displayTierProgress(current);
+                case 6 -> handleDeleteAccount(current);
+                default -> ui.displayInvalidChoiceMessage();
+            }
+        } while (choice != 0);
+    }
+
+    /**
+     * Handles account deletion for authenticated member
+     */
+    private void handleDeleteAccount(Member member) {
+        if (member == null) {
+            ui.displayMessage("[ ERROR ] No member found to delete.");
+            return;
+        }
+        
+        // Show warning and get confirmation
+        if (!ui.confirmAccountDeletion(member)) {
+            ui.displayMessage("\n[ System ] Account deletion cancelled.");
+            return;
+        }
+        
+        // Delete the member
+        boolean deleted = memberService.deleteMember(member.getMemberId());
+        
+        if (deleted) {
+            // Logout the member after deletion
+            ui.displayAccountDeletionResult(true, member);
+            ui.setCurrentMember(null);
+            saveAllData();
+            
+            // Display goodbye message
+            System.out.println("\nYou have been logged out. Thank you for being a valued member.");
+            System.out.println("We hope to see you again in the future!");
+        } else {
+            ui.displayAccountDeletionResult(false, member);
+        }
+    }
+
+    /**
+     * Handles points management (member view)
+     */
+    private void handlePointsManagement() {
+        if (!ui.isMemberAuthenticated()) {
+            ui.displayMemberRequiredMessage();
+            return;
+        }
+        
+        int choice;
+        Member current = ui.getCurrentMember();
+        do {
+            choice = ui.getPointsManagementChoice();
+            switch (choice) {
+                case 0 -> {}
+                case 1 -> ui.displayPointsBalance(current);
+                case 2 -> {
+                    String history = pointsService.getPointsHistory(current.getMemberId());
+                    ui.displayMessage(history);
+                }
+                case 3 -> {
+                    int expiryCount = pointsService.checkPointsExpiry();
+                    ui.displayMessage("Found " + expiryCount + " members with expiring points.");
+                    saveAllData();
+                }
+                case 4 -> ui.displayTierProgress(current);
+                default -> ui.displayInvalidChoiceMessage();
+            }
+        } while (choice != 0);
+    }
+
+    /**
+     * Handles redemption management (member view)
+     */
+    private void handleRedemptionManagement() {
+        if (!ui.isMemberAuthenticated()) {
+            ui.displayMemberRequiredMessage();
+            return;
+        }
+        
+        int choice;
+        Member current = ui.getCurrentMember();
+        do {
+            choice = ui.getRedemptionManagementChoice();
+            switch (choice) {
+                case 0 -> {}
+                case 1 -> {
+                    if (current.getPoints() < 100) {
+                        ui.displayMessage("\n[ ERROR ] You need at least 100 points to redeem!");
+                        ui.displayMessage("Current points: " + current.getPoints());
+                        break;
+                    }
+                    ui.displayRedemptionOptions(current);
+                    int option = ui.getIntInput();
+                    int points = 0;
+                    String type = "";
+                    switch (option) {
+                        case 1: points = 2000; type = "Room Upgrade"; break;
+                        case 2: points = 1000; type = "Room Discount"; break;
+                        case 3: points = 3000; type = "Spa Treatment"; break;
+                        case 4: points = 2500; type = "Gift Voucher"; break;
+                        case 5: 
+                            points = ui.inputPointsToRedeem();
+                            type = ui.inputRedemptionType();
+                            break;
+                        default: ui.displayMessage("Invalid option!");
+                    }
+                    if (points > 0) {
+                        double discount = redemptionService.processRedemption(current, points, type);
+                        if (discount > 0) {
+                            ui.displayMessage("\n+================================================+");
+                            ui.displayMessage("|  [ SUCCESS ] Redemption Successful!              |");
+                            ui.displayMessage("+================================================+");
+                            ui.displayMessage("  Savings: RM " + String.format("%.2f", discount));
+                            ui.displayMessage("  Remaining points: " + current.getPoints());
+                            saveAllData();
+                        } else {
+                            ui.displayMessage("\n[ ERROR ] Redemption failed!");
+                            ui.displayMessage("  Possible reasons:");
+                            ui.displayMessage("  - Not enough points");
+                            ui.displayMessage("  - Exceeded tier limit");
+                            ui.displayMessage("  - Invalid redemption amount");
+                        }
+                    }
+                }
+                case 2 -> {
+                    String history = redemptionService.getRedemptionHistory(current.getMemberId());
+                    ui.displayMessage(history);
+                }
+                case 3 -> ui.displayRedemptionRates();
+                case 4 -> ui.displayRedemptionEligibility(current);
+                default -> ui.displayInvalidChoiceMessage();
+            }
+        } while (choice != 0);
+    }
+
+    /**
+     * Handles notification management (member view)
+     */
+    private void handleNotificationManagement() {
+        if (!ui.isMemberAuthenticated()) {
+            ui.displayMemberRequiredMessage();
+            return;
+        }
+        
+        int choice;
+        Member current = ui.getCurrentMember();
+        do {
+            choice = ui.getNotificationManagementChoice();
+            switch (choice) {
+                case 0 -> {}
+                case 1 -> {
+                    String notifs = notificationService.getMemberNotifications(current.getMemberId());
+                    ui.displayNotifications(notifs, current);
+                    notificationService.markMemberNotificationsRead(current.getMemberId());
+                    saveAllData();
+                }
+                case 2 -> {
+                    String notifId = ui.inputString("Enter Notification ID: ");
+                    boolean marked = notificationService.markNotificationRead(notifId);
+                    ui.displayMessage(marked ? "Notification marked as read!" : "Notification not found!");
+                    saveAllData();
+                }
+                case 3 -> {
+                    String notifId2 = ui.inputString("Enter Notification ID: ");
+                    boolean dismissed = notificationService.dismissNotification(notifId2);
+                    ui.displayMessage(dismissed ? "Notification dismissed!" : "Notification not found!");
+                    saveAllData();
+                }
+                case 4 -> {
+                    int expiryCount = pointsService.checkPointsExpiry();
+                    ui.displayMessage("Found " + expiryCount + " members with expiring points.");
+                    saveAllData();
+                }
+                default -> ui.displayInvalidChoiceMessage();
+            }
+        } while (choice != 0);
+    }
+
+    /**
+     * Handles report access (staff only)
+     */
     private void handleReportAccess() {
         if (!ui.isStaffAuthenticated()) {
             ui.displayAccessDeniedMessage();
@@ -124,256 +410,23 @@ public class LoyaltyControl {
         generateReports();
     }
 
-   
-    private void manageMembers() {
-        int choice;
-        do {
-            choice = ui.getMemberManagementChoice();
-            switch (choice) {
-                case 0 -> {}
-                case 1 -> {
-                    Member newMember = ui.inputMemberDetails();
-                    if (memberService.addMember(newMember)) {
-                        ui.displayMessage("Member registered successfully!");
-                        saveAllData();
-                    } else {
-                        ui.displayMessage("Failed to register member. Please check ID and email.");
-                    }
-                }
-                case 2 -> ui.displayMembers(memberService.getAllMembers());
-                case 3 -> {
-                    String term = ui.inputSearchTerm();
-                    ui.displayMembers(memberService.searchMembers(term));
-                }
-                case 4 -> {
-                    String id = ui.inputMemberId("Enter Member ID: ");
-                    Member member = memberService.findMemberById(id);
-                    if (member != null) {
-                        ui.displayMessage("\nUpdating profile for: " + member.getName());
-                        String name = ui.inputString("New Name (Enter to skip): ");
-                        if (!name.isEmpty()) member.setName(name);
-                        String email = ui.inputString("New Email (Enter to skip): ");
-                        if (!email.isEmpty()) member.setEmail(email);
-                        String phone = ui.inputString("New Phone (Enter to skip): ");
-                        if (!phone.isEmpty()) member.setPhoneNumber(phone);
-                        String roomType = ui.inputString("Preferred Room Type (Enter to skip): ");
-                        if (!roomType.isEmpty()) member.setPreferredRoomType(roomType);
-                        ui.displayMessage("Profile updated!");
-                        saveAllData();
-                    } else {
-                        ui.displayMessage("Member not found!");
-                    }
-                }
-                case 5 -> {  //  Delete Member
-                    String id = ui.inputMemberId("Enter Member ID to delete: ");
-                    Member member = memberService.findMemberById(id);
-                    if (member != null) {
-                        ui.displayMessage("\n+================================================+");
-                        ui.displayMessage("|  [ WARNING ] You are about to delete a member   |");
-                        ui.displayMessage("+================================================+");
-                        ui.displayMemberDetails(member);
-                        if (ui.confirmAction("\nAre you sure you want to permanently delete this member?")) {
-                            boolean deleted = memberService.deleteMember(id);
-                            if (deleted) {
-                                ui.displayMessage("\n+================================================+");
-                                ui.displayMessage("|  [ SUCCESS ] Member deleted successfully!        |");
-                                ui.displayMessage("+================================================+");
-                                saveAllData();
-                            } else {
-                                ui.displayMessage("\n[ ERROR ] Failed to delete member.");
-                            }
-                        } else {
-                            ui.displayMessage("\n[ System ] Deletion cancelled.");
-                        }
-                    } else {
-                        ui.displayMessage("[ ERROR ] Member not found!");
-                    }
-                }
-                case 6 -> {  // View Tier Status
-                    String id2 = ui.inputMemberId("Enter Member ID: ");
-                    Member m = memberService.findMemberById(id2);
-                    if (m != null) ui.displayPointsBalance(m);
-                    else ui.displayMessage("Member not found!");
-                }
-                case 7 -> ui.displayTierBenefits();
-                case 8 -> {  // View Tier Progression
-                    String id3 = ui.inputMemberId("Enter Member ID: ");
-                    Member m2 = memberService.findMemberById(id3);
-                    if (m2 != null) ui.displayTierProgress(m2);
-                    else ui.displayMessage("Member not found!");
-                }
-                default -> ui.displayInvalidChoiceMessage();
-            }
-        } while (choice != 0);
+    /**
+     * Handles personalized promotion (member view)
+     */
+    private void handlePersonalizedPromotion() {
+        if (!ui.isMemberAuthenticated()) {
+            ui.displayMemberRequiredMessage();
+            return;
+        }
+        
+        Member current = ui.getCurrentMember();
+        String promotion = memberService.getPersonalizedPromotion(current);
+        ui.displayPersonalizedPromotion(promotion);
     }
 
-
-    private void managePoints() {
-        int choice;
-        do {
-            choice = ui.getPointsManagementChoice();
-            switch (choice) {
-                case 0 -> {}
-                case 1 -> {
-                    String id = ui.inputMemberId("Enter Member ID: ");
-                    Member member = memberService.findMemberById(id);
-                    if (member != null) {
-                        double amount = ui.inputAmountSpent();
-                        String bookingId = ui.inputString("Booking ID (optional): ");
-                        int points = pointsService.earnPoints(member, amount, bookingId);
-                        if (points > 0) {
-                            ui.displayMessage("Points earned successfully! +" + points + " points");
-                            ui.displayMessage("New balance: " + member.getPoints() + " points");
-                            saveAllData();
-                        } else {
-                            ui.displayMessage("Failed to earn points. Please check the amount.");
-                        }
-                    } else {
-                        ui.displayMessage("Member not found!");
-                    }
-                }
-                case 2 -> {
-                    String id2 = ui.inputMemberId("Enter Member ID: ");
-                    Member m = memberService.findMemberById(id2);
-                    if (m != null) ui.displayPointsBalance(m);
-                    else ui.displayMessage("Member not found!");
-                }
-                case 3 -> {
-                    String id3 = ui.inputMemberId("Enter Member ID: ");
-                    String history = pointsService.getPointsHistory(id3);
-                    ui.displayMessage(history);
-                }
-                case 4 -> {
-                    int expiryCount = pointsService.checkPointsExpiry();
-                    ui.displayMessage("Found " + expiryCount + " members with expiring points.");
-                    saveAllData();
-                }
-                case 5 -> {
-                    String id4 = ui.inputMemberId("Enter Member ID: ");
-                    Member m2 = memberService.findMemberById(id4);
-                    if (m2 != null) ui.displayTierProgress(m2);
-                    else ui.displayMessage("Member not found!");
-                }
-                default -> ui.displayInvalidChoiceMessage();
-            }
-        } while (choice != 0);
-    }
-
-
-    private void manageRedemptions() {
-        int choice;
-        do {
-            choice = ui.getRedemptionManagementChoice();
-            switch (choice) {
-                case 0 -> {}
-                case 1 -> {
-                    String id = ui.inputMemberId("Enter Member ID: ");
-                    Member member = memberService.findMemberById(id);
-                    if (member != null) {
-                        ui.displayRedemptionOptions(member);
-                        int option = ui.getIntInput();
-                        int points = 0;
-                        String type = "";
-                        switch (option) {
-                            case 1: points = 2000; type = "Room Upgrade"; break;
-                            case 2: points = 1000; type = "Room Discount"; break;
-                            case 3: points = 3000; type = "Spa Treatment"; break;
-                            case 4: points = 2500; type = "Gift Voucher"; break;
-                            case 5: 
-                                points = ui.inputPointsToRedeem();
-                                type = ui.inputRedemptionType();
-                                break;
-                            default: ui.displayMessage("Invalid option!");
-                        }
-                        if (points > 0) {
-                            double discount = redemptionService.processRedemption(member, points, type);
-                            if (discount > 0) {
-                                ui.displayMessage("Redemption successful!");
-                                ui.displayMessage("Savings: RM " + String.format("%.2f", discount));
-                                ui.displayMessage("Remaining points: " + member.getPoints());
-                                saveAllData();
-                            } else {
-                                ui.displayMessage("Redemption failed!");
-                            }
-                        }
-                    } else {
-                        ui.displayMessage("Member not found!");
-                    }
-                }
-                case 2 -> {
-                    String id2 = ui.inputMemberId("Enter Member ID: ");
-                    String history = redemptionService.getRedemptionHistory(id2);
-                    ui.displayMessage(history);
-                }
-                case 3 -> {
-                    boolean undone = redemptionService.undoRedemption();
-                    if (undone) {
-                        ui.displayMessage("Redemption undone successfully!");
-                        saveAllData();
-                    } else {
-                        ui.displayMessage("No redemptions to undo!");
-                    }
-                }
-                case 4 -> ui.displayRedemptionRates();
-                case 5 -> {
-                    String id3 = ui.inputMemberId("Enter Member ID: ");
-                    Member m = memberService.findMemberById(id3);
-                    if (m != null) ui.displayRedemptionEligibility(m);
-                    else ui.displayMessage("Member not found!");
-                }
-                default -> ui.displayInvalidChoiceMessage();
-            }
-        } while (choice != 0);
-    }
-
-
-    private void manageNotifications() {
-        int choice;
-        do {
-            choice = ui.getNotificationManagementChoice();
-            switch (choice) {
-                case 0 -> {}
-                case 1 -> {
-                    String id = ui.inputMemberId("Enter Member ID: ");
-                    Member member = memberService.findMemberById(id);
-                    if (member != null) {
-                        String notifs = notificationService.getMemberNotifications(id);
-                        ui.displayNotifications(notifs, member);
-                        notificationService.markMemberNotificationsRead(id);
-                        saveAllData();
-                    } else {
-                        ui.displayMessage("Member not found!");
-                    }
-                }
-                case 2 -> ui.displayAllNotifications(notificationService.getAllNotifications());
-                case 3 -> {
-                    String notifId = ui.inputString("Enter Notification ID: ");
-                    boolean marked = notificationService.markNotificationRead(notifId);
-                    ui.displayMessage(marked ? "Notification marked as read!" : "Notification not found!");
-                    saveAllData();
-                }
-                case 4 -> {
-                    int count = notificationService.generatePromotionalNotifications();
-                    ui.displayMessage("Generated " + count + " promotional notifications!");
-                    saveAllData();
-                }
-                case 5 -> {
-                    String notifId2 = ui.inputString("Enter Notification ID: ");
-                    boolean dismissed = notificationService.dismissNotification(notifId2);
-                    ui.displayMessage(dismissed ? "Notification dismissed!" : "Notification not found!");
-                    saveAllData();
-                }
-                case 6 -> {
-                    int expiryCount = pointsService.checkPointsExpiry();
-                    ui.displayMessage("Found " + expiryCount + " members with expiring points.");
-                    saveAllData();
-                }
-                default -> ui.displayInvalidChoiceMessage();
-            }
-        } while (choice != 0);
-    }
-
-//staff only
+    /**
+     * Generates reports (staff only)
+     */
     private void generateReports() {
         // Double-check authentication
         if (!ui.isStaffAuthenticated()) {
@@ -397,32 +450,32 @@ public class LoyaltyControl {
         } while (choice != 0);
     }
 
-     // Views personalized promotion for a member
-    private void viewPersonalizedPromotion() {
-        String id = ui.inputMemberId("Enter Member ID: ");
-        Member member = memberService.findMemberById(id);
-        if (member != null) {
-            String promotion = memberService.getPersonalizedPromotion(member);
-            ui.displayPersonalizedPromotion(promotion);
-        } else {
-            ui.displayMessage("Member not found!");
-        }
-    }
-
-      //Saves all data to files
+    /**
+     * Saves all data to files
+     */
     public void saveAllData() {
         FileHandler.saveMembers(memberList);
         FileHandler.saveTransactions(transactionQueue);
         FileHandler.saveNotifications(notificationList);
     }
 
+    // =========================================================================
+    // PUBLIC METHODS FOR EXTERNAL INTEGRATION
+    // =========================================================================
+
     public Member findMemberByEmailOrPhone(String email, String phone) {
         if (memberList == null) return null;
         for (int i = 1; i <= memberList.getNumberOfEntries(); i++) {
             Member m = memberList.getEntry(i);
-            if ((email != null && !email.trim().isEmpty() && m.getEmail().equalsIgnoreCase(email.trim())) ||
-                (phone != null && !phone.trim().isEmpty() && m.getPhoneNumber().replace("-", "").equalsIgnoreCase(phone.trim().replace("-", "")))) {
+            if (email != null && !email.trim().isEmpty() && m.getEmail().equalsIgnoreCase(email.trim())) {
                 return m;
+            }
+            if (phone != null && !phone.trim().isEmpty()) {
+                String cleanPhone = phone.trim().replace("-", "").replace(" ", "");
+                String cleanMemberPhone = m.getPhoneNumber().replace("-", "").replace(" ", "");
+                if (cleanMemberPhone.equalsIgnoreCase(cleanPhone)) {
+                    return m;
+                }
             }
         }
         return null;
@@ -443,7 +496,6 @@ public class LoyaltyControl {
         }
         return null;
     }
-
 
     public int rewardPointsForStay(Member member, double amountSpent, String bookingId) {
         if (member == null || pointsService == null) return 0;
