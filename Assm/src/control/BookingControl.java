@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import utility.FileHandler;
 
 /**
+ * @author Sin Chuen Liang
  * Controller class managing separate Queue ADTs per Room Type for Walk-In Bookings & Room Assignments,
  * and linking seamlessly with Front Desk Service.
  */
