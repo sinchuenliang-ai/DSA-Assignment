@@ -480,7 +480,7 @@ public class BookingControl {
                     Booking b = allBookings.dequeue();
                     temp.enqueue(b);
                     if (isAvailableForDates && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
-                        if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
+                        if (b.getBookingStatus() != null && b.getBookingStatus().startsWith("Confirmed")) {
                             try {
                                 LocalDate bIn = LocalDate.parse(b.getCheckInDate());
                                 LocalDate bOut = LocalDate.parse(b.getCheckOutDate());
@@ -594,7 +594,7 @@ public class BookingControl {
                 Booking b = allBookings.dequeue();
                 temp.enqueue(b);
                 if (isAvailable && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
-                    if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
+                    if (b.getBookingStatus() != null && b.getBookingStatus().startsWith("Confirmed")) {
                         try {
                             LocalDate bIn = LocalDate.parse(b.getCheckInDate());
                             LocalDate bOut = LocalDate.parse(b.getCheckOutDate());
@@ -745,7 +745,7 @@ public class BookingControl {
                     temp.enqueue(b);
                     
                     if (isAvailable && b.getRoom() != null && b.getRoom().getRoomNumber().equalsIgnoreCase(room.getRoomNumber())) {
-                        if (b.getBookingStatus() != null && !b.getBookingStatus().equalsIgnoreCase("Cancelled")) {
+                        if (b.getBookingStatus() != null && b.getBookingStatus().startsWith("Confirmed")) {
                             try {
                                 LocalDate bCheckIn = LocalDate.parse(b.getCheckInDate());
                                 LocalDate bCheckOut = LocalDate.parse(b.getCheckOutDate());
