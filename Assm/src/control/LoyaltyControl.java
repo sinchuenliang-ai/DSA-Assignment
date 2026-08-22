@@ -62,58 +62,18 @@ public class LoyaltyControl {
             choice = ui.getMainMenuChoice();
             switch (choice) {
                 case 0 -> handleLogout();
-                case 1 -> handleMemberRegistration();
-                case 2 -> handleMemberLogin();
-                case 3 -> handleStaffLogin();
-                case 4 -> handleMemberManagement();
-                case 5 -> handlePointsManagement();
-                case 6 -> handleRedemptionManagement();
-                case 7 -> handleNotificationManagement();
-                case 8 -> handlePersonalizedPromotion();
-                case 9 -> handleReportAccess();
+                case 1 -> handleMemberLogin();
+                case 2 -> handleStaffLogin();
+                case 3 -> handleMemberManagement();
+                case 4 -> handlePointsManagement();
+                case 5 -> handleRedemptionManagement();
+                case 6 -> handleNotificationManagement();
+                case 7 -> handlePersonalizedPromotion();
+                case 8 -> handleReportAccess();
                 default -> ui.displayInvalidChoiceMessage();
             }
         } while (choice != 0);
         saveAllData();
-    }
-
-    /**
-     * Handles member registration
-     */
-    private void handleMemberRegistration() {
-        Member newMember = ui.getMemberRegistrationDetails();
-        
-        // Check if member with same email already exists
-        Member existing = findMemberByEmailOrPhone(newMember.getEmail(), null);
-        if (existing != null) {
-            ui.displayMessage("\n+================================================+");
-            ui.displayMessage("|  [ ERROR ] Member with this email already exists! |");
-            ui.displayMessage("|  Member ID: " + existing.getMemberId() + " |");
-            ui.displayMessage("+================================================+");
-            return;
-        }
-        
-        // Auto-generate member ID
-        int maxIdNum = 0;
-        for (int i = 1; i <= memberList.getNumberOfEntries(); i++) {
-            String mId = memberList.getEntry(i).getMemberId();
-            if (mId != null && mId.startsWith("M")) {
-                try {
-                    int num = Integer.parseInt(mId.substring(1));
-                    if (num > maxIdNum) maxIdNum = num;
-                } catch (NumberFormatException ignored) {}
-            }
-        }
-        String nextMemberId = String.format("M%03d", maxIdNum + 1);
-        newMember.setMemberId(nextMemberId);
-        
-        boolean success = memberService.addMember(newMember);
-        ui.displayRegistrationResult(success, success ? newMember : null);
-        if (success) {
-            // Auto-login after registration
-            ui.setCurrentMember(newMember);
-            saveAllData();
-        }
     }
 
     /**
@@ -236,6 +196,7 @@ public class LoyaltyControl {
             // Display goodbye message
             System.out.println("\nYou have been logged out. Thank you for being a valued member.");
             System.out.println("We hope to see you again in the future!");
+            ui.getMainMenuChoice();
         } else {
             ui.displayAccountDeletionResult(false, member);
         }
