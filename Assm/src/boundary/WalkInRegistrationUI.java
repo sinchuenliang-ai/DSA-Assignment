@@ -9,6 +9,7 @@ import java.time.format.DateTimeParseException;
 import java.util.Scanner;
 
 /**
+ * @author Sin Chuen Liang
  * User-Friendly Boundary class for Walk-In Registration & Queue Management.
  */
 public class WalkInRegistrationUI {
