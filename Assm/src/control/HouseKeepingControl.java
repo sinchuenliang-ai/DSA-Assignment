@@ -427,7 +427,10 @@ public class HouseKeepingControl {
         ArrayStack<HousekeepingTask> tempStack = new ArrayStack<>();
 
         // Store latest record for each Task ID
-        Map<String, HousekeepingTask> latestTasks = new HashMap<>();
+        HousekeepingTask[] latestTasks =
+                new HousekeepingTask[taskStack.size()];
+
+        int latestCount = 0;
 
         // ================================
         // SEARCHING
@@ -436,9 +439,22 @@ public class HouseKeepingControl {
 
             HousekeepingTask task = taskStack.pop();
 
+            boolean alreadyExists = false;
+
+            // Check whether this Task ID already exists
+            for (int i = 0; i < latestCount; i++) {
+                if (latestTasks[i].getTaskID()
+                        .equalsIgnoreCase(task.getTaskID())) {
+
+                    alreadyExists = true;
+                    break;
+                }
+            }
+
             // First occurrence is the latest status
-            if (!latestTasks.containsKey(task.getTaskID())) {
-                latestTasks.put(task.getTaskID(), task);
+            if (!alreadyExists) {
+                latestTasks[latestCount] = task;
+                latestCount++;
             }
 
             tempStack.push(task);
@@ -451,18 +467,21 @@ public class HouseKeepingControl {
 
         // Array to store filtered results
         HousekeepingTask[] reportTasks =
-                new HousekeepingTask[latestTasks.size()];
+                new HousekeepingTask[latestCount];
 
         int count = 0;
 
         // ================================
         // MULTIPLE CRITERIA FILTERING
         // ================================
-        for (HousekeepingTask task : latestTasks.values()) {
+        for (int i = 0; i < latestCount; i++) {
+
+            HousekeepingTask task = latestTasks[i];
 
             boolean statusMatch =
                     statusFilter.equalsIgnoreCase("ALL")
-                    || task.getStatus().equalsIgnoreCase(statusFilter);
+                    || task.getStatus()
+                            .equalsIgnoreCase(statusFilter);
 
             boolean staffMatch =
                     staffIDFilter.equalsIgnoreCase("ALL")
