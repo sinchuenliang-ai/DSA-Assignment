@@ -288,7 +288,7 @@ public class FileHandler {
                     Guest guest = new Guest(guestID, guestName, gender, phone, email, icPassport);
                     Booking booking = new Booking(bookingID, bookingDate, checkInDate, checkOutDate, numGuests, status, roomType, guest, assignedRoom);
 
-                    if ("Confirmed".equalsIgnoreCase(status)) {
+                    if ("Confirmed".equalsIgnoreCase(status) || status.trim().toLowerCase().startsWith("confirmed")) {
                         if (confirmedBookings != null) confirmedBookings.enqueue(booking);
                     } else if (status.toLowerCase().contains("pending confirmation") || status.toLowerCase().contains("assigned")) {
                         if (pendingConfirmations != null) pendingConfirmations.enqueue(booking);
