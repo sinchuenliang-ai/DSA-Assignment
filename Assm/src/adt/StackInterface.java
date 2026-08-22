@@ -6,7 +6,7 @@ package adt;
 
 /**
  *
- * @author LENOVO
+ * @author Chia Min Yi
  */
 public interface StackInterface<T> {
 
