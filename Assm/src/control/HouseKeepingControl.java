@@ -1,3 +1,7 @@
+/**
+ *
+ * @author Chia Min Yi
+ */
 package control;
 
 import adt.ArrayStack;
