@@ -649,40 +649,58 @@ public void updateReservationStatus() {
           System.out.println("  [ System ] Guest name updated successfully.");
         }
         case 2 -> {
-          // Step 1: Pick category
-          String newCategory = frontDeskUI.selectRoomCategory();
-
-          // Step 2: Build list of occupied rooms (skip current reservation's room)
-          adt.ListInterface<String> occupied = new adt.LinkedList<>();
-          Iterator<Reservation> it = reservationTree.getInorderIterator();
-          while (it.hasNext()) {
-            Reservation r = it.next();
-            // A room is occupied if Checked-In or Reserved (excluding current reservation)
-            String rStatus = r.getStatus();
-            boolean isActive = "Checked-In".equalsIgnoreCase(rStatus)
-                || "Reserved".equalsIgnoreCase(rStatus);
-            boolean isCurrentRes = r.getConfirmationNumber().equals(res.getConfirmationNumber());
-            if (isActive && !isCurrentRes && r.getRoomNumber() != null
-                && !r.getRoomNumber().equalsIgnoreCase("Pending")
-                && !r.getRoomNumber().equalsIgnoreCase("0")) {
-              occupied.add(r.getRoomNumber().toUpperCase());
+            // Step 1: Pick category
+            String newCategory = frontDeskUI.selectRoomCategory();
+        
+            // Step 2: Build list of occupied rooms (active reservations)
+            adt.ListInterface<String> occupied = new adt.LinkedList<>();
+            Iterator<Reservation> it = reservationTree.getInorderIterator();
+            while (it.hasNext()) {
+                Reservation r = it.next();
+                String rStatus = r.getStatus();
+                boolean isActive = "Checked-In".equalsIgnoreCase(rStatus)
+                        || "Reserved".equalsIgnoreCase(rStatus);
+                boolean isCurrentRes = r.getConfirmationNumber().equals(res.getConfirmationNumber());
+                if (isActive && !isCurrentRes && r.getRoomNumber() != null
+                        && !r.getRoomNumber().equalsIgnoreCase("Pending")
+                        && !r.getRoomNumber().equalsIgnoreCase("0")) {
+                    occupied.add(r.getRoomNumber().toUpperCase());
+                }
             }
-          }
-
-          // Step 3: Pick room number for that category
-          String newRoom = frontDeskUI.selectRoomNumber(newCategory, occupied);
-          if (newRoom == null) {
-            System.out.println("  [ System ] Room update cancelled — no available rooms.");
-            break;
-          }
-
-          res.setRoomCategory(newCategory);
-          res.setRoomNumber(newRoom);
-          res.setTotalBillAmount(calculateTotalBill(newCategory, res.getStayDurationDays()));
-          isUpdated = true;
-          System.out.println("  [ System ] Room updated to " + newRoom + " (" + newCategory
-              + "). Bill auto-recalculated: RM "
-              + String.format("%.2f", res.getTotalBillAmount()));
+        
+            // Step 3: Also exclude rooms that are NOT "Ready for Check-In" in housekeeping
+            if (houseKeepingControl != null) {
+                MapInterface<String, HousekeepingTask> hkMap = houseKeepingControl.getAllActiveTasksMap();
+                adt.ListInterface<Room> allRooms = FileHandler.loadAllHotelRooms();
+                for (int i = 1; i <= allRooms.getNumberOfEntries(); i++) {
+                    Room room = allRooms.getEntry(i);
+                    // Compare using the full room type (e.g., "Standard Single")
+                    if (room.getRoomType().equalsIgnoreCase(newCategory)) {
+                        String roomNo = room.getRoomNumber().toUpperCase();
+                        if (!occupied.contains(roomNo)) {
+                            HousekeepingTask task = hkMap.get(roomNo);
+                            if (task != null && !"Ready for Check-In".equalsIgnoreCase(task.getStatus())) {
+                                occupied.add(roomNo);
+                            }
+                        }
+                    }
+                }
+            }
+        
+            // Step 4: Pick room number for that category (dirty rooms are now excluded)
+            String newRoom = frontDeskUI.selectRoomNumber(newCategory, occupied);
+            if (newRoom == null) {
+                System.out.println("  [ System ] Room update cancelled — no available rooms.");
+                break;
+            }
+        
+            res.setRoomCategory(newCategory);
+            res.setRoomNumber(newRoom);
+            res.setTotalBillAmount(calculateTotalBill(newCategory, res.getStayDurationDays()));
+            isUpdated = true;
+            System.out.println("  [ System ] Room updated to " + newRoom + " (" + newCategory
+                    + "). Bill auto-recalculated: RM "
+                    + String.format("%.2f", res.getTotalBillAmount()));
         }
         case 3 -> {
           LocalDate checkIn = frontDeskUI.inputCheckInDate();
