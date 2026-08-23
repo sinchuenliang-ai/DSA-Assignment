@@ -181,7 +181,7 @@ public class HouseKeepingUI {
                 // INVALID CHOICE
                 // =================================================
                 default:
-                    System.out.println("\nInvalid choice. Please enter 0-7.");
+                    System.out.println("\nInvalid choice. Please enter 0-6.");
                     break;
             }
 
