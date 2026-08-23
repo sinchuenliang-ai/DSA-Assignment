@@ -18,8 +18,8 @@ import utility.FileHandler;
 import utility.MessageUI;
 
 /**
- * Controller class managing Front Desk operations, BST ADT operations,
- * and integration with Walk-In Bookings and Housekeeping.
+ *
+ * @author Clement Chow Quan Liang
  */
 public class FrontDeskControl {
 
