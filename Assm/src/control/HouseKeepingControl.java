@@ -360,34 +360,61 @@ public class HouseKeepingControl {
         }
     }
 
-    // END HOUSEKEEPING CYCLE
-    public void completeHousekeepingCycle() {
-        if (taskStack.isEmpty()) {
-            System.out.println("No active housekeeping task.");
-            return;
+    public void displayCheckedInRooms() {
+
+    System.out.println("\n===== CHECKED-IN ROOMS =====");
+
+        try {
+
+            java.io.BufferedReader reader =
+                    new java.io.BufferedReader(
+                            new java.io.FileReader("booking.txt")
+                    );
+
+            String line;
+            boolean found = false;
+
+            while ((line = reader.readLine()) != null) {
+
+                // Split the data using |
+                String[] data = line.split("\\|");
+
+                // Make sure the record has enough data
+                if (data.length >= 10) {
+
+                    String bookingID = data[0];
+                    String guestName = data[1];
+                    String roomType = data[2];
+                    String roomNumber = data[3];
+                    String status = data[6];
+
+                    // Only display Checked-In rooms
+                    if (status.equalsIgnoreCase("Checked-In")) {
+
+                        System.out.println("----------------------------");
+                        System.out.println("Booking ID  : " + bookingID);
+                        System.out.println("Guest Name  : " + guestName);
+                        System.out.println("Room Type   : " + roomType);
+                        System.out.println("Room Number : " + roomNumber);
+                        System.out.println("Status      : " + status);
+
+                        found = true;
+                    }
+                }
+            }
+
+            reader.close();
+
+            if (!found) {
+                System.out.println("No rooms are currently checked in.");
+            }
+
+        } catch (java.io.IOException e) {
+
+            System.out.println(
+                    "Error reading checked-in room data."
+            );
         }
-
-        HousekeepingTask currentTask = taskStack.peek();
-
-        if (!currentTask.getStatus().equalsIgnoreCase("Ready for Check-In")) {
-            System.out.println("Room is not ready for check-in (Current Status: " + currentTask.getStatus() + ").");
-            return;
-        }
-
-        String completedTaskID = currentTask.getTaskID();
-        String completedLocation = currentTask.getLocation();
-
-        System.out.println("\n" + completedLocation + " has been checked in / marked clean.");
-        System.out.println("Housekeeping task " + completedTaskID + " completed.");
-
-        onRoomCleaned(completedLocation);
-
-        while (!taskStack.isEmpty() && taskStack.peek().getTaskID().equals(completedTaskID)) {
-            taskStack.pop();
-        }
-
-        FileHandler.saveHousekeepingTasks(taskStack);
-        System.out.println("Task " + completedTaskID + " removed from the active stack.");
     }
 
     private void onRoomCleaned(String roomLocation) {
