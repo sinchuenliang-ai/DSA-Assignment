@@ -154,7 +154,7 @@ public class HouseKeepingUI {
                     break;
 
                 // =================================================
-                // 5. ROOM CHECKED-IN (Complete cycle)
+                // 5. ROOM CHECKED-IN
                 // =================================================
                 case 5:
                     System.out.println("\n===== ROOM CHECKED-IN =====");
