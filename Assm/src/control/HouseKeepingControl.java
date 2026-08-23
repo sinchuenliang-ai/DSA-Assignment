@@ -369,6 +369,14 @@ public class HouseKeepingControl {
 
         String filePath = "data/bookings.txt";
 
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        System.out.println("\n==============================================================");
+        System.out.println("                 CURRENTLY CHECKED-IN ROOMS");
+        System.out.println("==============================================================");
+        System.out.println("Today: " + today);
+        System.out.println("--------------------------------------------------------------");
+
         try (BufferedReader reader =
                 new BufferedReader(new FileReader(filePath))) {
 
@@ -384,19 +392,39 @@ public class HouseKeepingControl {
 
                 String[] data = line.split("\\|", -1);
 
-                if (data.length >= 14) {
+                if (data.length < 14) {
+                    continue;
+                }
 
-                    String bookingID = data[0].trim();
-                    String guestName = data[8].trim();
-                    String roomType = data[6].trim();
-                    String roomNumber = data[13].trim();
-                    String status = data[5].trim();
+                String bookingID = data[0].trim();
+                String checkInDateStr = data[2].trim();
+                String checkOutDateStr = data[3].trim();
 
-                    if (status.equalsIgnoreCase("Checked-In")) {
+                String bookingStatus = data[5].trim();
+                String roomType = data[6].trim();
+                String roomNumber = data[7].trim();
+                String guestName = data[8].trim();
 
-                        System.out.println(
-                                "--------------------------------"
-                        );
+                try {
+
+                    java.time.LocalDate checkInDate =
+                            java.time.LocalDate.parse(checkInDateStr);
+
+                    java.time.LocalDate checkOutDate =
+                            java.time.LocalDate.parse(checkOutDateStr);
+
+                    /*
+                     * Guest is currently staying when:
+                     *
+                     * Check-In <= Today
+                     * AND
+                     * Today < Check-Out
+                     */
+                    boolean currentlyCheckedIn =
+                            !checkInDate.isAfter(today)
+                            && today.isBefore(checkOutDate);
+
+                    if (currentlyCheckedIn) {
 
                         System.out.println(
                                 "Booking ID  : " + bookingID
@@ -415,15 +443,39 @@ public class HouseKeepingControl {
                         );
 
                         System.out.println(
-                                "Status      : " + status
+                                "Check-In    : " + checkInDate
+                        );
+
+                        System.out.println(
+                                "Check-Out   : " + checkOutDate
+                        );
+
+                        System.out.println(
+                                "Booking Status : " + bookingStatus
+                        );
+
+                        System.out.println(
+                                "Room Status : Currently Checked-In"
+                        );
+
+                        System.out.println(
+                                "----------------------------------------------"
                         );
 
                         found = true;
                     }
+
+                } catch (java.time.format.DateTimeParseException e) {
+
+                    System.out.println(
+                            "[Warning] Invalid date for Booking ID: "
+                            + bookingID
+                    );
                 }
             }
 
             if (!found) {
+
                 System.out.println(
                         "No rooms are currently checked in."
                 );
