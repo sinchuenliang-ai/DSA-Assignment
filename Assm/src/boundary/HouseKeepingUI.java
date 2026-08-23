@@ -173,7 +173,7 @@ public class HouseKeepingUI {
                 // =================================================
                 // 7. EXIT
                 // =================================================
-                case 7:
+                case 0:
                     System.out.println("\nThank you for using the Housekeeping Status Management System.");
                     break;
 
@@ -185,7 +185,7 @@ public class HouseKeepingUI {
                     break;
             }
 
-        } while (choice != 7);
+        } while (choice != 0);
     }
     
     
