@@ -49,7 +49,7 @@ public class HouseKeepingUI {
             System.out.println("2. Update Room Status");
             System.out.println("3. Rollback Last Status");
             System.out.println("4. Display Status History");
-            System.out.println("5. Room Checked-In (Complete Cycle)");
+            System.out.println("5. Room Checked-In");
             System.out.println("6. Generate Report");
             System.out.println("0. Exit");
             System.out.println("========================================");
@@ -158,7 +158,7 @@ public class HouseKeepingUI {
                 // =================================================
                 case 5:
                     System.out.println("\n===== ROOM CHECKED-IN =====");
-                    manager.completeHousekeepingCycle();
+                    manager.displayCheckedInRooms();
                     break;
 
                     
