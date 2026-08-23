@@ -4,7 +4,10 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-
+/**
+ *
+ * @author Clement Chow Quan Liang
+ */
 public class BinarySearchTreeADT<T extends Comparable<T>> implements TreeInterface<T>, Serializable {
 
   private class Node implements Serializable {
