@@ -301,7 +301,7 @@ public class HouseKeepingUI {
                 // =================================================
                 // 3. BACK
                 // =================================================
-                case 3:
+                case 0:
                     System.out.println(
                             "\nReturning to Housekeeping Status Management..."
                     );
@@ -313,12 +313,12 @@ public class HouseKeepingUI {
                 // =================================================
                 default:
                     System.out.println(
-                            "\nInvalid choice. Please enter 1-3."
+                            "\nInvalid choice. Please enter 0-2."
                     );
                     break;
             }
 
-        } while (reportChoice != 3);
+        } while (reportChoice != 0);
     }
     
         // =========================================================
