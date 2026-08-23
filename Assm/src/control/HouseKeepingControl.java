@@ -12,6 +12,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import utility.FileHandler;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 
 public class HouseKeepingControl {
 
@@ -362,57 +365,78 @@ public class HouseKeepingControl {
 
     public void displayCheckedInRooms() {
 
-    System.out.println("\n===== CHECKED-IN ROOMS =====");
+        boolean found = false;
 
-        try {
+        String filePath = "data/bookings.txt";
 
-            java.io.BufferedReader reader =
-                    new java.io.BufferedReader(
-                            new java.io.FileReader("booking.txt")
-                    );
+        try (BufferedReader reader =
+                new BufferedReader(new FileReader(filePath))) {
 
             String line;
-            boolean found = false;
 
             while ((line = reader.readLine()) != null) {
 
-                // Split the data using |
-                String[] data = line.split("\\|");
+                line = line.trim();
 
-                // Make sure the record has enough data
-                if (data.length >= 10) {
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
 
-                    String bookingID = data[0];
-                    String guestName = data[1];
-                    String roomType = data[2];
-                    String roomNumber = data[3];
-                    String status = data[6];
+                String[] data = line.split("\\|", -1);
 
-                    // Only display Checked-In rooms
+                if (data.length >= 14) {
+
+                    String bookingID = data[0].trim();
+                    String guestName = data[8].trim();
+                    String roomType = data[6].trim();
+                    String roomNumber = data[13].trim();
+                    String status = data[5].trim();
+
                     if (status.equalsIgnoreCase("Checked-In")) {
 
-                        System.out.println("----------------------------");
-                        System.out.println("Booking ID  : " + bookingID);
-                        System.out.println("Guest Name  : " + guestName);
-                        System.out.println("Room Type   : " + roomType);
-                        System.out.println("Room Number : " + roomNumber);
-                        System.out.println("Status      : " + status);
+                        System.out.println(
+                                "--------------------------------"
+                        );
+
+                        System.out.println(
+                                "Booking ID  : " + bookingID
+                        );
+
+                        System.out.println(
+                                "Guest Name  : " + guestName
+                        );
+
+                        System.out.println(
+                                "Room Type   : " + roomType
+                        );
+
+                        System.out.println(
+                                "Room Number : " + roomNumber
+                        );
+
+                        System.out.println(
+                                "Status      : " + status
+                        );
 
                         found = true;
                     }
                 }
             }
 
-            reader.close();
-
             if (!found) {
-                System.out.println("No rooms are currently checked in.");
+                System.out.println(
+                        "No rooms are currently checked in."
+                );
             }
 
-        } catch (java.io.IOException e) {
+        } catch (IOException e) {
 
             System.out.println(
-                    "Error reading checked-in room data."
+                    "Unable to read booking data."
+            );
+
+            System.out.println(
+                    "Error: " + e.getMessage()
             );
         }
     }
