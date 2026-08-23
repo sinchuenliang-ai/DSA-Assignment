@@ -3,9 +3,8 @@ package adt;
 import java.util.Iterator;
 
 /**
- * Interface for Tree ADT operations.
  *
- * @param <T>
+ * @author Clement Chow Quan Liang
  */
 public interface TreeInterface<T extends Comparable<T>> {
 
