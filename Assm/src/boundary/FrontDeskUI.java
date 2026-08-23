@@ -7,7 +7,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.Scanner;
 
 /**
- * Boundary class for Front Desk Service UI interactions.
+ *
+ * @author Clement Chow Quan Liang
  */
 public class FrontDeskUI {
 
