@@ -1,7 +1,5 @@
 package adt;
 
-import java.util.Iterator;
-
 /**
  *
  * @author Clement Chow Quan Liang

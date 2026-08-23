@@ -9,11 +9,11 @@ import entity.Room;
 import entity.Member;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import adt.LinkedList;
+import adt.HashMap;
+import adt.Iterator;
+import adt.ListInterface;
+import adt.MapInterface;
 import utility.FileHandler;
 import utility.MessageUI;
 
@@ -507,7 +507,7 @@ public class FrontDeskControl {
     LocalDate startDate = frontDeskUI.inputCheckInDate();
     LocalDate endDate = frontDeskUI.inputCheckOutDate(startDate);
 
-    List<Room> allRooms = FileHandler.loadAllHotelRooms();
+    ListInterface<Room> allRooms = FileHandler.loadAllHotelRooms();
     StringBuilder table = new StringBuilder();
 
     table.append("+------------+--------------------+------------------+---------------------------+--------------+--------------+----------------------+\n");
@@ -515,7 +515,8 @@ public class FrontDeskControl {
         "Room No.", "Room Type", "Confirmation #", "Guest Name", "Check-In", "Check-Out", "Status"));
     table.append("+------------+--------------------+------------------+---------------------------+--------------+--------------+----------------------+\n");
 
-    for (Room room : allRooms) {
+    for (int _ri = 1; _ri <= allRooms.getNumberOfEntries(); _ri++) {
+      Room room = allRooms.getEntry(_ri);
       String rNo = room.getRoomNumber();
       Reservation matchingRes = null;
 
@@ -558,7 +559,7 @@ public class FrontDeskControl {
         outStr = matchingRes.getCheckOutDate() != null ? matchingRes.getCheckOutDate() : "-";
         rawStatus = matchingRes.getStatus() != null ? matchingRes.getStatus() : "Checked-In";
       } else {
-        Map<String, HousekeepingTask> hkTaskMap = houseKeepingControl != null
+        MapInterface<String, HousekeepingTask> hkTaskMap = houseKeepingControl != null
             ? houseKeepingControl.getAllActiveTasksMap()
             : new HashMap<>();
 
@@ -651,8 +652,8 @@ public void updateReservationStatus() {
           // Step 1: Pick category
           String newCategory = frontDeskUI.selectRoomCategory();
 
-          // Step 2: Build set of occupied rooms (skip current reservation's room)
-          java.util.Set<String> occupied = new java.util.HashSet<>();
+          // Step 2: Build list of occupied rooms (skip current reservation's room)
+          adt.ListInterface<String> occupied = new adt.LinkedList<>();
           Iterator<Reservation> it = reservationTree.getInorderIterator();
           while (it.hasNext()) {
             Reservation r = it.next();
@@ -805,7 +806,7 @@ public void updateReservationStatus() {
           boolean useMinBill, double minBill, boolean useMinDays, int minDays, String searchKeyword, int sortChoice) {
 
     // 1. Search & Filter from BST
-    List<Reservation> filteredList = new ArrayList<>();
+    ListInterface<Reservation> filteredList = new LinkedList<>();
     Iterator<Reservation> it = reservationTree.getInorderIterator();
 
     int countCheckedIn = 0;
@@ -875,7 +876,8 @@ public void updateReservationStatus() {
     if (filteredList.isEmpty()) {
       sb.append("                              [ NOTICE ] No reservation records matched the specified filter criteria.                   \n");
     } else {
-      for (Reservation r : filteredList) {
+      for (int _ri = 1; _ri <= filteredList.getNumberOfEntries(); _ri++) {
+        Reservation r = filteredList.getEntry(_ri);
         String inDate = (r.getCheckInDate() != null && !r.getCheckInDate().isEmpty()) ? r.getCheckInDate() : "-";
         String outDate = (r.getCheckOutDate() != null && !r.getCheckOutDate().isEmpty()) ? r.getCheckOutDate() : "-";
         sb.append(String.format("%-12s %-18s %-18s %-9s %-12s %-12s %5d   RM %10.2f  %-12s\n",
@@ -895,10 +897,10 @@ public void updateReservationStatus() {
     sb.append("=========================================================================================================================\n");
     sb.append("                                            OPERATIONAL METRICS & SUMMARY                                                \n");
     sb.append("-------------------------------------------------------------------------------------------------------------------------\n");
-    double avgBill = filteredList.isEmpty() ? 0.0 : totalRevenue / filteredList.size();
-    double avgStay = filteredList.isEmpty() ? 0.0 : (double) totalStayDays / filteredList.size();
+    double avgBill = filteredList.isEmpty() ? 0.0 : totalRevenue / filteredList.getNumberOfEntries();
+    double avgStay = filteredList.isEmpty() ? 0.0 : (double) totalStayDays / filteredList.getNumberOfEntries();
 
-    sb.append(String.format(" Total Records Displayed : %-10d | Total Filtered Revenue : RM %12.2f\n", filteredList.size(), totalRevenue));
+    sb.append(String.format(" Total Records Displayed : %-10d | Total Filtered Revenue : RM %12.2f\n", filteredList.getNumberOfEntries(), totalRevenue));
     sb.append(String.format(" Average Bill / Guest    : RM %-7.2f | Average Stay Duration  : %.1f Night(s)\n", avgBill, avgStay));
     sb.append("-------------------------------------------------------------------------------------------------------------------------\n");
     sb.append(String.format(" Status Breakdown        : Checked-In: %d | Reserved: %d | Checked-Out: %d | Maintenance/Other: %d\n",
@@ -911,15 +913,15 @@ public void updateReservationStatus() {
   /**
    * Custom Insertion Sort algorithm demonstration on List of Reservations.
    */
-  private void sortReservations(List<Reservation> list, int sortChoice) {
-    for (int i = 1; i < list.size(); i++) {
-      Reservation current = list.get(i);
+  private void sortReservations(ListInterface<Reservation> list, int sortChoice) {
+    for (int i = 2; i <= list.getNumberOfEntries(); i++) {
+      Reservation current = list.getEntry(i);
       int j = i - 1;
-      while (j >= 0 && compareReservations(list.get(j), current, sortChoice) > 0) {
-        list.set(j + 1, list.get(j));
+      while (j >= 1 && compareReservations(list.getEntry(j), current, sortChoice) > 0) {
+        list.replace(j + 1, list.getEntry(j));
         j--;
       }
-      list.set(j + 1, current);
+      list.replace(j + 1, current);
     }
   }
 
@@ -1018,7 +1020,7 @@ public void updateReservationStatus() {
 
   private void printBusinessCycleReport(LocalDate startDate, LocalDate endDate, String categoryFilter, double minRevenue, int sortMetric) {
     // 1. Initialize category map with standard master categories
-    Map<String, CategoryPerformanceMetric> metricMap = new HashMap<>();
+    MapInterface<String, CategoryPerformanceMetric> metricMap = new HashMap<>();
     String[] masterCategories = {
         "Standard Single", "Standard Double", "Deluxe Suite", "Executive Suite", "Presidential Suite"
     };
@@ -1087,8 +1089,10 @@ public void updateReservationStatus() {
     }
 
     // 3. Compute KPI ratios and prepare list
-    List<CategoryPerformanceMetric> results = new ArrayList<>();
-    for (CategoryPerformanceMetric m : metricMap.values()) {
+    ListInterface<CategoryPerformanceMetric> results = new LinkedList<>();
+    ListInterface<CategoryPerformanceMetric> metricVals = metricMap.values();
+    for (int _mi = 1; _mi <= metricVals.getNumberOfEntries(); _mi++) {
+      CategoryPerformanceMetric m = metricVals.getEntry(_mi);
       if (m.totalRevenue >= minRevenue && (categoryFilter.isEmpty() || m.reservationsCount > 0)) {
         m.adr = m.roomNightsSold > 0 ? m.totalRevenue / m.roomNightsSold : 0.0;
         m.revenueShare = hotelGrossRevenue > 0 ? (m.totalRevenue / hotelGrossRevenue) * 100.0 : 0.0;
@@ -1117,7 +1121,8 @@ public void updateReservationStatus() {
     CategoryPerformanceMetric topRevenueCat = null;
     CategoryPerformanceMetric topVolumeCat = null;
 
-    for (CategoryPerformanceMetric m : results) {
+    for (int _ri = 1; _ri <= results.getNumberOfEntries(); _ri++) {
+      CategoryPerformanceMetric m = results.getEntry(_ri);
       if (topRevenueCat == null || m.totalRevenue > topRevenueCat.totalRevenue) topRevenueCat = m;
       if (topVolumeCat == null || m.reservationsCount > topVolumeCat.reservationsCount) topVolumeCat = m;
 
@@ -1140,7 +1145,7 @@ public void updateReservationStatus() {
     sb.append("-------------------------------------------------------------------------------------------------------------------\n");
     sb.append(String.format(" Gross Business Cycle Revenue : RM %-15.2f | Total Room Nights Sold       : %d\n", hotelGrossRevenue, hotelTotalNights));
     sb.append(String.format(" Total Cycle Reservations     : %-18d | Overall Hotel ADR (Daily Rate): RM %.2f\n", hotelTotalBookings, overallHotelADR));
-    sb.append(String.format(" Overall Average Stay Length  : %-18.1f | Total Categories Analyzed     : %d\n", overallAvgStay, results.size()));
+    sb.append(String.format(" Overall Average Stay Length  : %-18.1f | Total Categories Analyzed     : %d\n", overallAvgStay, results.getNumberOfEntries()));
     sb.append("-------------------------------------------------------------------------------------------------------------------\n");
     if (topRevenueCat != null && topRevenueCat.totalRevenue > 0) {
       sb.append(String.format(" Top Revenue Generating Category: %s (RM %.2f - %.1f%% of Total)\n",
@@ -1167,15 +1172,15 @@ public void updateReservationStatus() {
   /**
    * Custom Insertion Sort algorithm demonstration for Category Performance Metrics.
    */
-  private void sortCategoryMetrics(List<CategoryPerformanceMetric> list, int sortMetric) {
-    for (int i = 1; i < list.size(); i++) {
-      CategoryPerformanceMetric current = list.get(i);
+  private void sortCategoryMetrics(ListInterface<CategoryPerformanceMetric> list, int sortMetric) {
+    for (int i = 2; i <= list.getNumberOfEntries(); i++) {
+      CategoryPerformanceMetric current = list.getEntry(i);
       int j = i - 1;
-      while (j >= 0 && compareCategoryMetrics(list.get(j), current, sortMetric) > 0) {
-        list.set(j + 1, list.get(j));
+      while (j >= 1 && compareCategoryMetrics(list.getEntry(j), current, sortMetric) > 0) {
+        list.replace(j + 1, list.getEntry(j));
         j--;
       }
-      list.set(j + 1, current);
+      list.replace(j + 1, current);
     }
   }
 
@@ -1193,7 +1198,7 @@ public void updateReservationStatus() {
     LocalDate today = LocalDate.now();
     boolean updated = false;
     Iterator<Reservation> it = reservationTree.getInorderIterator();
-    List<Reservation> toUpdate = new ArrayList<>();
+    ListInterface<Reservation> toUpdate = new LinkedList<>();
     
     while (it.hasNext()) {
         Reservation r = it.next();

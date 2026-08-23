@@ -2,9 +2,10 @@
 10008802|Alex Muthu|Standard Double|A-005|1|150.00|Checked-Out|2026-08-19|2026-08-20
 10008804|Alice Smith|Executive Suite|S-201|2|1000.00|Checked-In|2026-08-21|2026-08-23
 10008805|Siti Nurhaliza|Executive Suite|S-202|5|2500.00|Reserved|2026-08-25|2026-08-30
-10008810|Michael Chen|Standard Single|A-002|2|240.00|Checked-In|2026-08-21|2026-08-23
+10008810|Michael Chen|Standard Single|A-002|2|240.00|Checked-Out|2026-08-21|2026-08-23
 10008811|Sarah Lim|Standard Single|A-003|4|480.00|Reserved|2026-09-01|2026-09-05
 10008812|David Wong|Deluxe Suite|D-105|0|0.00|Maintenance|2026-08-20|2026-08-20
 10008814|Ahmad Ali|Deluxe Suite|D-103|2|500.00|Checked-In|2026-08-22|2026-08-24
 10008815|Obee|Presidential|P-502|1|1200.00|Reserved|2026-09-01|2026-09-02
 10008816|Alice Tan|Standard|A-001|3|360.00|Checked-In|2026-08-22|2026-08-25
+10008817|ooop|Standard Single|A-002|1|120.00|Checked-In|2026-08-23|2026-08-24

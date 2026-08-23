@@ -1,8 +1,6 @@
 package adt;
 
 import java.io.Serializable;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 /**
  *
@@ -114,7 +112,7 @@ public class BinarySearchTreeADT<T extends Comparable<T>> implements TreeInterfa
     @SuppressWarnings("unchecked")
     public T next() {
       if (!hasNext()) {
-        throw new NoSuchElementException();
+        throw new RuntimeException("No more elements");
       }
       return (T) elements[currentIndex++];
     }

@@ -8,9 +8,9 @@ import adt.ArrayStack;
 import adt.StackInterface;
 import entity.HousekeepingTask;
 import entity.Room;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import adt.HashMap;
+import adt.ListInterface;
+import adt.MapInterface;
 import utility.FileHandler;
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -208,8 +208,8 @@ public class HouseKeepingControl {
     }
 
     // GET MAP OF ALL ACTIVE ROOM TASKS (LATEST STATUS PER ROOM)
-    public Map<String, HousekeepingTask> getAllActiveTasksMap() {
-        Map<String, HousekeepingTask> map = new HashMap<>();
+    public MapInterface<String, HousekeepingTask> getAllActiveTasksMap() {
+        MapInterface<String, HousekeepingTask> map = new HashMap<>();
         if (taskStack.isEmpty()) return map;
 
         ArrayStack<HousekeepingTask> temp = new ArrayStack<>();
@@ -500,8 +500,8 @@ public class HouseKeepingControl {
         if (bookingControl != null) {
             bookingControl.markRoomAvailable(roomLocation);
         } else {
-            List<Room> all = FileHandler.loadAllHotelRooms();
-            for (Room r : all) {
+            ListInterface<Room> all = FileHandler.loadAllHotelRooms();
+            for (int _i=1; _i<=all.getNumberOfEntries(); _i++) { Room r = all.getEntry(_i);
                 if (r.getRoomNumber().equalsIgnoreCase(roomLocation.trim())) {
                     r.setRoomStatus("Available");
                     break;
@@ -665,7 +665,7 @@ public class HouseKeepingControl {
         ArrayStack<HousekeepingTask> tempStack = new ArrayStack<>();
 
         // Store only latest status for each Task ID
-        Map<String, HousekeepingTask> latestTasks = new HashMap<>();
+        MapInterface<String, HousekeepingTask> latestTasks = new HashMap<>();
 
         // ================================
         // SEARCHING
@@ -694,7 +694,7 @@ public class HouseKeepingControl {
         // ================================
         // ANALYSIS
         // ================================
-        for (HousekeepingTask task : latestTasks.values()) {
+        ListInterface<HousekeepingTask> _vals = latestTasks.values(); for(int _i=1; _i<=_vals.getNumberOfEntries(); _i++) { HousekeepingTask task = _vals.getEntry(_i);
 
             if (task.getStatus().equalsIgnoreCase("Dirty")) {
                 dirtyCount++;

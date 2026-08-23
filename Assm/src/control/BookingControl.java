@@ -379,8 +379,8 @@ public class BookingControl {
         }
 
         if (!exists) {
-            java.util.List<Room> all = FileHandler.loadAllHotelRooms();
-            for (Room r : all) {
+            adt.ListInterface<Room> all = FileHandler.loadAllHotelRooms();
+            for (int _ri=1; _ri<=all.getNumberOfEntries(); _ri++) { Room r = all.getEntry(_ri);
                 if (r.getRoomNumber().equalsIgnoreCase(roomNumber.trim())) {
                     r.setRoomStatus("Available");
                     availableRooms.enqueue(r);
@@ -430,10 +430,10 @@ public class BookingControl {
         System.out.printf(" %-15s | %-25s | %-15s\n", "Room Number", "Room Type", "Status");
         System.out.println("----------------------------------------------------------------------------------");
 
-        java.util.List<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
+        adt.ListInterface<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
         QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
 
-        java.util.Map<String, entity.HousekeepingTask> activeTasks = new java.util.HashMap<>();
+        adt.MapInterface<String, entity.HousekeepingTask> activeTasks = new adt.HashMap<>();
         if (this.houseKeepingControl != null) {
             activeTasks = this.houseKeepingControl.getAllActiveTasksMap();
         }
@@ -442,16 +442,16 @@ public class BookingControl {
         utility.FileHandler.loadReservations(resTree);
 
         int count = 0;
-        java.util.List<String> notCleanRooms = new java.util.ArrayList<>();
+        adt.ListInterface<String> notCleanRooms = new adt.LinkedList<>();
 
-        for (Room room : allRooms) {
+        for (int _ri=1; _ri<=allRooms.getNumberOfEntries(); _ri++) { Room room = allRooms.getEntry(_ri);
             // Filter to requested room type only
             if (!room.getRoomType().equalsIgnoreCase(roomType)) continue;
 
             boolean isAvailableForDates = true;
 
             // Check FrontDesk Reservations — use actual dates
-            java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
+            adt.Iterator<entity.Reservation> it = resTree.getInorderIterator();
             while (it.hasNext()) {
                 entity.Reservation r = it.next();
                 if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
@@ -527,7 +527,7 @@ public class BookingControl {
         
         if (!notCleanRooms.isEmpty()) {
             System.out.println("\n  [ NOTE ] The following rooms are free for these dates but NOT CLEAN YET:");
-            for (String roomStr : notCleanRooms) {
+            for (int _ri=1; _ri<=notCleanRooms.getNumberOfEntries(); _ri++) { String roomStr = notCleanRooms.getEntry(_ri);
                 System.out.println("   * Room " + roomStr);
             }
         }
@@ -542,10 +542,10 @@ public class BookingControl {
         QueueInterface<Booking> targetQueue = getQueueByRoomType(roomType);
         if (targetQueue.isEmpty()) return null;
 
-        java.util.List<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
+        adt.ListInterface<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
         QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
 
-        java.util.Map<String, entity.HousekeepingTask> activeTasks = new java.util.HashMap<>();
+        adt.MapInterface<String, entity.HousekeepingTask> activeTasks = new adt.HashMap<>();
         if (this.houseKeepingControl != null) {
             activeTasks = this.houseKeepingControl.getAllActiveTasksMap();
         }
@@ -554,7 +554,7 @@ public class BookingControl {
 
         // Find first available room of this type for the requested dates
         Room chosenRoom = null;
-        for (Room room : allRooms) {
+        for (int _ri=1; _ri<=allRooms.getNumberOfEntries(); _ri++) { Room room = allRooms.getEntry(_ri);
             if (!room.getRoomType().equalsIgnoreCase(roomType)) continue;
 
             boolean isAvailable = true;
@@ -568,7 +568,7 @@ public class BookingControl {
             }
 
             if (isAvailable) {
-                java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
+                adt.Iterator<entity.Reservation> it = resTree.getInorderIterator();
                 while (it.hasNext()) {
                     entity.Reservation r = it.next();
                     if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
@@ -657,10 +657,10 @@ public class BookingControl {
         System.out.println("----------------------------------------------------------------------------------");
 
         QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
-        java.util.List<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
+        adt.ListInterface<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
         
         // 1. Integrate with HouseKeeping Module (No housekeeping block for registration)
-        java.util.Map<String, entity.HousekeepingTask> activeTasks = new java.util.HashMap<>();
+        adt.MapInterface<String, entity.HousekeepingTask> activeTasks = new adt.HashMap<>();
         if (this.houseKeepingControl != null) {
             activeTasks = this.houseKeepingControl.getAllActiveTasksMap();
         }
@@ -670,7 +670,7 @@ public class BookingControl {
         utility.FileHandler.loadReservations(resTree);
 
         // Count overlapping waiting bookings (Waiting status, room == null) for each room type
-        java.util.Map<String, Integer> waitingCountMap = new java.util.HashMap<>();
+        adt.MapInterface<String, Integer> waitingCountMap = new adt.HashMap<>();
         waitingCountMap.put("Standard Single", 0);
         waitingCountMap.put("Standard Double", 0);
         waitingCountMap.put("Deluxe Suite", 0);
@@ -691,7 +691,8 @@ public class BookingControl {
                         String type = b.getRequestedRoomType();
                         if (type != null) {
                             String matchedKey = null;
-                            for (String key : waitingCountMap.keySet()) {
+                            String[] waitingKeys = {"Standard Single", "Standard Double", "Deluxe Suite", "Executive Suite", "Presidential Suite"};
+                            for (String key : waitingKeys) {
                                 if (key.equalsIgnoreCase(type.trim()) || type.trim().toLowerCase().contains(key.toLowerCase())) {
                                     matchedKey = key;
                                     break;
@@ -710,12 +711,12 @@ public class BookingControl {
         }
 
         // Get physically available rooms (not reserved/occupied/assigned)
-        java.util.List<Room> physAvailableRooms = new java.util.ArrayList<>();
-        for (Room room : allRooms) {
+        adt.ListInterface<Room> physAvailableRooms = new adt.LinkedList<>();
+        for (int _ri=1; _ri<=allRooms.getNumberOfEntries(); _ri++) { Room room = allRooms.getEntry(_ri);
             boolean isAvailable = true;
             
             // Check FrontDesk Reservations — use actual dates
-            java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
+            adt.Iterator<entity.Reservation> it = resTree.getInorderIterator();
             while (it.hasNext()) {
                 entity.Reservation r = it.next();
                 if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {
@@ -772,17 +773,19 @@ public class BookingControl {
         }
 
         // Group physically available rooms by room type
-        java.util.Map<String, java.util.List<Room>> roomsByType = new java.util.HashMap<>();
-        roomsByType.put("Standard Single", new java.util.ArrayList<>());
-        roomsByType.put("Standard Double", new java.util.ArrayList<>());
-        roomsByType.put("Deluxe Suite", new java.util.ArrayList<>());
-        roomsByType.put("Executive Suite", new java.util.ArrayList<>());
-        roomsByType.put("Presidential Suite", new java.util.ArrayList<>());
+        adt.MapInterface<String, adt.ListInterface<Room>> roomsByType = new adt.HashMap<>();
+        roomsByType.put("Standard Single", new adt.LinkedList<>());
+        roomsByType.put("Standard Double", new adt.LinkedList<>());
+        roomsByType.put("Deluxe Suite", new adt.LinkedList<>());
+        roomsByType.put("Executive Suite", new adt.LinkedList<>());
+        roomsByType.put("Presidential Suite", new adt.LinkedList<>());
 
-        for (Room r : physAvailableRooms) {
+        for (int _ri = 1; _ri <= physAvailableRooms.getNumberOfEntries(); _ri++) {
+            Room r = physAvailableRooms.getEntry(_ri);
             String type = r.getRoomType();
             String matchedKey = null;
-            for (String key : roomsByType.keySet()) {
+            String[] typeKeys = {"Standard Single", "Standard Double", "Deluxe Suite", "Executive Suite", "Presidential Suite"};
+            for (String key : typeKeys) {
                 if (key.equalsIgnoreCase(type.trim()) || type.trim().toLowerCase().contains(key.toLowerCase())) {
                     matchedKey = key;
                     break;
@@ -797,12 +800,12 @@ public class BookingControl {
         int totalAvailableCount = 0;
         String[] typesOrder = {"Standard Single", "Standard Double", "Deluxe Suite", "Executive Suite", "Presidential Suite"};
         for (String type : typesOrder) {
-            java.util.List<Room> typeRooms = roomsByType.get(type);
+            adt.ListInterface<Room> typeRooms = roomsByType.get(type);
             int waiting = waitingCountMap.get(type);
-            int net = typeRooms.size() - waiting;
+            int net = typeRooms.getNumberOfEntries() - waiting;
             if (net > 0) {
-                for (int i = 0; i < net && i < typeRooms.size(); i++) {
-                    Room room = typeRooms.get(i);
+                for (int i = 1; i <= net && i <= typeRooms.getNumberOfEntries(); i++) {
+                    Room room = typeRooms.getEntry(i);
                     System.out.printf(" %-15s | %-25s | %-15s\n", room.getRoomNumber(), room.getRoomType(), "AVAILABLE");
                     totalAvailableCount++;
                 }
@@ -820,7 +823,7 @@ public class BookingControl {
      * Checks if at least one room of the requested type is available for the stay dates.
      */
     public boolean isRoomTypeAvailableForStay(String roomType, LocalDate checkIn, LocalDate checkOut) {
-        java.util.List<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
+        adt.ListInterface<Room> allRooms = utility.FileHandler.loadAllHotelRooms();
         QueueInterface<Booking> allBookings = getAllBookingsIncludingConfirmed();
         
         adt.TreeInterface<entity.Reservation> resTree = new adt.BinarySearchTreeADT<>();
@@ -853,13 +856,13 @@ public class BookingControl {
 
         // Get physically available rooms of this type
         int physCount = 0;
-        for (Room room : allRooms) {
+        for (int _ri=1; _ri<=allRooms.getNumberOfEntries(); _ri++) { Room room = allRooms.getEntry(_ri);
             if (!room.getRoomType().equalsIgnoreCase(roomType) && !room.getRoomType().toLowerCase().contains(roomType.toLowerCase())) continue;
 
             boolean isAvailable = true;
 
             // Check FrontDesk Reservations
-            java.util.Iterator<entity.Reservation> it = resTree.getInorderIterator();
+            adt.Iterator<entity.Reservation> it = resTree.getInorderIterator();
             while (it.hasNext()) {
                 entity.Reservation r = it.next();
                 if (room.getRoomNumber().equalsIgnoreCase(r.getRoomNumber()) && !"Checked-Out".equalsIgnoreCase(r.getStatus())) {

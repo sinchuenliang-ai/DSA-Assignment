@@ -147,7 +147,7 @@ public class WalkInRegistrationUI {
             if (opt4) System.out.println("  [4] Executive Suite      ($500.00 / night)");
             if (opt5) System.out.println("  [5] Presidential Suite   ($1200.00 / night)");
 
-            java.util.List<Integer> validChoices = new java.util.ArrayList<>();
+            adt.ListInterface<Integer> validChoices = new adt.LinkedList<>();
             if (opt1) validChoices.add(1);
             if (opt2) validChoices.add(2);
             if (opt3) validChoices.add(3);
@@ -159,8 +159,15 @@ public class WalkInRegistrationUI {
                 return;
             }
 
+            // Build display string for valid choices
+            StringBuilder choiceStr = new StringBuilder();
+            for (int _i = 1; _i <= validChoices.getNumberOfEntries(); _i++) {
+                if (_i > 1) choiceStr.append(", ");
+                choiceStr.append(validChoices.getEntry(_i));
+            }
+
             while (true) {
-                typeChoice = readIntInput("Choice (" + validChoices.toString().replace("[", "").replace("]", "") + "): ", 1, 5);
+                typeChoice = readIntInput("Choice (" + choiceStr + "): ", 1, 5);
                 if (validChoices.contains(typeChoice)) {
                     break;
                 }

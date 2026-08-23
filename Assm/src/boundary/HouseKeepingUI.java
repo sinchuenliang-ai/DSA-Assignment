@@ -11,15 +11,15 @@ import entity.Room;
 import entity.Staff;
 import utility.FileHandler;
 
-import java.util.List;
-import java.util.Map;
+import adt.ListInterface;
+import adt.MapInterface;
 import java.util.Scanner;
 
 public class HouseKeepingUI {
 
     private final HouseKeepingControl manager;
     private final Scanner scanner;
-    private final List<Staff> staffList;
+    private final ListInterface<Staff> staffList;
 
     public HouseKeepingUI() {
         this.manager = new HouseKeepingControl();
@@ -324,13 +324,14 @@ public class HouseKeepingUI {
         // =========================================================
         // FIND STAFF BY STAFF ID
         // =========================================================
-        private static Staff findStaff(String staffID, List<Staff> staffList) {
+        private static Staff findStaff(String staffID, ListInterface<Staff> staffList) {
 
             if (staffID == null || staffList == null) {
                 return null;
             }
 
-            for (Staff s : staffList) {
+            for (int _i = 1; _i <= staffList.getNumberOfEntries(); _i++) {
+                Staff s = staffList.getEntry(_i);
                 if (s.getStaffID().equalsIgnoreCase(staffID)) {
                     return s;
                 }

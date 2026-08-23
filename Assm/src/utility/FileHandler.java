@@ -17,9 +17,9 @@ import entity.Transaction;
 import entity.Notification;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import adt.ListInterface;
+import adt.LinkedList;
+import adt.Iterator;
 
 /**
  * Utility class responsible for reading from and writing to text files (.txt).
@@ -130,13 +130,13 @@ public class FileHandler {
     // 2. ROOMS (Master Hotel Room Inventory)
     // =========================================================================
 
-    public static List<Room> loadAllHotelRooms() {
+    public static ListInterface<Room> loadAllHotelRooms() {
         File file = new File(ROOMS_FILE);
         if (!file.exists()) {
             createDefaultRoomsFile();
         }
 
-        List<Room> allRooms = new ArrayList<>();
+        ListInterface<Room> allRooms = new LinkedList<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -161,18 +161,18 @@ public class FileHandler {
     }
 
     public static void loadRooms(QueueInterface<Room> availableRooms) {
-        List<Room> all = loadAllHotelRooms();
+        ListInterface<Room> all = loadAllHotelRooms();
         availableRooms.clear();
-        for (Room r : all) {
+        for (int _i=1; _i<=all.getNumberOfEntries(); _i++) { Room r = all.getEntry(_i);
             if ("Available".equalsIgnoreCase(r.getRoomStatus())) {
                 availableRooms.enqueue(r);
             }
         }
     }
 
-    public static void saveAllHotelRooms(List<Room> roomList) {
+    public static void saveAllHotelRooms(ListInterface<Room> roomList) {
         try (PrintWriter writer = new PrintWriter(new FileWriter(ROOMS_FILE))) {
-            for (Room r : roomList) {
+            for (int _i=1; _i<=roomList.getNumberOfEntries(); _i++) { Room r = roomList.getEntry(_i);
                 writer.println(String.format("%s|%s|%s|%s|%.2f",
                         r.getRoomID(),
                         r.getRoomNumber(),
@@ -188,8 +188,8 @@ public class FileHandler {
 
     public static void saveRooms(QueueInterface<Room> availableRooms) {
         // Read existing rooms to preserve occupied/maintenance states, then update matching available ones
-        List<Room> all = loadAllHotelRooms();
-        List<String> availableRoomNos = new ArrayList<>();
+        ListInterface<Room> all = loadAllHotelRooms();
+        ListInterface<String> availableRoomNos = new LinkedList<>();
 
         QueueInterface<Room> temp = new LinkedQueue<>();
         while (!availableRooms.isEmpty()) {
@@ -201,7 +201,7 @@ public class FileHandler {
             availableRooms.enqueue(temp.dequeue());
         }
 
-        for (Room r : all) {
+        for (int _i=1; _i<=all.getNumberOfEntries(); _i++) { Room r = all.getEntry(_i);
             if (availableRoomNos.contains(r.getRoomNumber().toUpperCase())) {
                 r.setRoomStatus("Available");
             } else if ("Available".equalsIgnoreCase(r.getRoomStatus())) {
@@ -376,13 +376,13 @@ public class FileHandler {
     // 4. STAFF (Housekeeping / Staff Directory)
     // =========================================================================
 
-    public static List<Staff> loadStaff() {
+    public static ListInterface<Staff> loadStaff() {
         File file = new File(STAFF_FILE);
         if (!file.exists()) {
             createDefaultStaffFile();
         }
 
-        List<Staff> staffList = new ArrayList<>();
+        ListInterface<Staff> staffList = new LinkedList<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -407,8 +407,8 @@ public class FileHandler {
     }
 
     public static Staff authenticateStaff(String staffID, String password) {
-        List<Staff> staffList = loadStaff();
-        for (Staff s : staffList) {
+        ListInterface<Staff> staffList = loadStaff();
+        for (int _i=1; _i<=staffList.getNumberOfEntries(); _i++) { Staff s = staffList.getEntry(_i);
             if (s.getStaffID().equalsIgnoreCase(staffID)) {
                 if (s.authenticate(password)) {
                     return s;
@@ -418,9 +418,9 @@ public class FileHandler {
         return null;
     }
 
-    public static void saveStaff(List<Staff> staffList) {
+    public static void saveStaff(ListInterface<Staff> staffList) {
         try (PrintWriter writer = new PrintWriter(new FileWriter(STAFF_FILE))) {
-            for (Staff s : staffList) {
+            for (int _i=1; _i<=staffList.getNumberOfEntries(); _i++) { Staff s = staffList.getEntry(_i);
                 writer.println(String.format("%s|%s|%s|%s|%s",
                         s.getStaffID(),
                         s.getStaffName(),
@@ -453,7 +453,7 @@ public class FileHandler {
             createDefaultHousekeepingFile();
         }
 
-        List<HousekeepingTask> taskList = new ArrayList<>();
+        ListInterface<HousekeepingTask> taskList = new LinkedList<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -476,7 +476,7 @@ public class FileHandler {
         }
 
         // Push tasks into stack in order
-        for (HousekeepingTask t : taskList) {
+        for (int _i=1; _i<=taskList.getNumberOfEntries(); _i++) { HousekeepingTask t = taskList.getEntry(_i);
             taskStack.push(t);
         }
     }
@@ -486,11 +486,11 @@ public class FileHandler {
 
         // Pop elements into temporary stack to retrieve bottom-to-top order
         ArrayStack<HousekeepingTask> tempStack = new ArrayStack<>();
-        List<HousekeepingTask> list = new ArrayList<>();
+        ListInterface<HousekeepingTask> list = new LinkedList<>();
 
         while (!taskStack.isEmpty()) {
             HousekeepingTask task = taskStack.pop();
-            list.add(0, task); // Insert at index 0 so bottom elements come first
+            list.add(1, task); // Insert at index 0 so bottom elements come first
             tempStack.push(task);
         }
 
@@ -500,7 +500,7 @@ public class FileHandler {
         }
 
         try (PrintWriter writer = new PrintWriter(new FileWriter(HOUSEKEEPING_FILE))) {
-            for (HousekeepingTask t : list) {
+            for (int _i=1; _i<=list.getNumberOfEntries(); _i++) { HousekeepingTask t = list.getEntry(_i);
                 writer.println(String.format("%s|%s|%s|%s|%s",
                         t.getTaskID(),
                         t.getLocation(),

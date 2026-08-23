@@ -311,7 +311,7 @@ public String inputGuestName() {
    * excluding rooms whose numbers appear in the occupied set.
    * Returns the selected room number, or null if no rooms are available.
    */
-  public String selectRoomNumber(String category, java.util.Set<String> occupiedRoomNumbers) {
+  public String selectRoomNumber(String category, adt.ListInterface<String> occupiedRoomNumbers) {
     // Define rooms per category (matches rooms.txt)
     String[][] categoryRooms = getCategoryRooms(category);
     if (categoryRooms == null || categoryRooms.length == 0) {
@@ -319,8 +319,8 @@ public String inputGuestName() {
       return null;
     }
 
-    // Filter out occupied rooms
-    java.util.List<String[]> available = new java.util.ArrayList<>();
+    // Filter out occupied rooms using adt.LinkedList instead of ArrayList
+    adt.ListInterface<String[]> available = new adt.LinkedList<>();
     for (String[] row : categoryRooms) {
       String roomNum = row[0];
       if (!occupiedRoomNumbers.contains(roomNum.toUpperCase())) {
@@ -337,14 +337,14 @@ public String inputGuestName() {
     System.out.println("  +-----+-------------+-----------+");
     System.out.printf( "  | %-3s | %-11s | %-9s |%n", "No", "Room Number", "Status");
     System.out.println("  +-----+-------------+-----------+");
-    for (int i = 0; i < available.size(); i++) {
+    for (int i = 1; i <= available.getNumberOfEntries(); i++) {
       System.out.printf("  | %-3d | %-11s | %-9s |%n",
-          i + 1, available.get(i)[0], "Available");
+          i, available.getEntry(i)[0], "Available");
     }
     System.out.println("  +-----+-------------+-----------+");
 
-    int choice = readIntInput("  Select room (1-" + available.size() + "): ", 1, available.size());
-    return available.get(choice - 1)[0];
+    int choice = readIntInput("  Select room (1-" + available.getNumberOfEntries() + "): ", 1, available.getNumberOfEntries());
+    return available.getEntry(choice)[0];
   }
 
   /**
